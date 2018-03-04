@@ -29,10 +29,11 @@ function server:update()
 			self.clint_id_counter = self.clint_id_counter + 1
 			print("server:", ("client %s joined"):format(self.clint_id_counter))
 			self.clients[k] = {
-				ip   = ip,
-				port = port,
-				id   = self.clint_id_counter,
-				tick = 0,
+				ip    = ip,
+				port  = port,
+				id    = self.clint_id_counter,
+				tick  = 0,
+				name  = data:sub(7):gsub(" ", "_"),
 			}
 			world:add_player(self.clients[k])
 		end
@@ -40,7 +41,12 @@ function server:update()
 		client.last_receive_tick = self.tick
 
 		-- interpret data
-		client.input = data
+		client.input = {
+			dx = tonumber(data:sub(1, 1)) - tonumber(data:sub(2, 2)),
+			dy = tonumber(data:sub(3, 3)) - tonumber(data:sub(4, 4)),
+			jump = data:sub(5, 5) == "1",
+			shoot = data:sub(6, 6) == "1",
+		}
 
 	end
 
@@ -65,10 +71,11 @@ end
 
 
 client = {}
-function client:init(host)
+function client:init(name, host)
 	self.udp = socket.udp()
 	self.udp:settimeout(0)
-	local ok, err = self.udp:setpeername(host, PORT)
+	self.name = name or "unknown"
+	local ok, err = self.udp:setpeername(host or "localhost", PORT)
 	if not ok then
 		print("error:", err)
 		love.event.quit(1)
@@ -77,10 +84,10 @@ end
 function client:send_input()
 	local isDown = love.keyboard.isDown
 	local input = ""
-	for _, k in ipairs({ "right", "left", "down", "up", "x" }) do
+	for _, k in ipairs({ "right", "left", "down", "up", "x", "c" }) do
 		input = input .. (isDown(k) and "1" or "0")
 	end
-	len, err = client.udp:send(input)
+	len, err = client.udp:send(input .. self.name)
 	if err then
 		print("error:", err)
 		love.event.quit(1)

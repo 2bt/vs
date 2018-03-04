@@ -13,8 +13,12 @@ love.mouse.setVisible(false)
 world:init()
 client_world:init()
 
-if arg[2] == nil then server:init() end
-client:init(arg[2] or "127.0.0.1")
+
+local name = arg[2]
+local host = arg[3]
+
+if not host then server:init() end
+client:init(name, host)
 
 
 function love.update()

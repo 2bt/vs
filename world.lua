@@ -27,8 +27,9 @@ world = {}
 function world:init()
 	self.tick = 0
 	self.players = {}
+	self.bullets = {}
 	self.tiles = {}
-	self.spawns = {}
+	self.spawning_points = {}
 
 	local y = 0
 	for line in love.filesystem.lines("assets/map.txt") do
@@ -37,7 +38,7 @@ function world:init()
 		local x = 0
 		for t in line:gmatch(".") do
 			if t == "@" then
-				table.insert(self.spawns, {
+				table.insert(self.spawning_points, {
 					x = x * TILE_SIZE + TILE_SIZE / 2,
 					y = y * TILE_SIZE + TILE_SIZE / 2,
 				})
@@ -96,15 +97,18 @@ function world:add_player(client)
 	client.player = p
 	table.insert(self.players, p)
 
-	local spawn = self.spawns[math.random(#self.spawns)]
-	p.x = spawn.x
-	p.y = spawn.y
-	p.vx = 0
-	p.vy = 0
-	p.in_air = true
-	p.dir = 1
-	p.old_jump = false
+	-- spawn from random spawning point
+	local spawn = self.spawning_points[math.random(#self.spawning_points)]
+
+	p.x            = spawn.x
+	p.y            = spawn.y
+	p.vx           = 0
+	p.vy           = 0
+	p.in_air       = true
+	p.dir          = 1
+	p.old_jump     = false
 	p.jump_control = true
+	p.shoot_delay  = 0
 end
 function world:remove_player(client)
 	for i, p in ipairs(self.players) do
@@ -116,48 +120,56 @@ function world:remove_player(client)
 end
 function world:update_player(p)
 	local input = p.client.input
-	local dx = tonumber(input:sub(1, 1)) -
-			   tonumber(input:sub(2, 2))
-	local dy = tonumber(input:sub(3, 3)) -
-			   tonumber(input:sub(4, 4))
-	local jump = input:sub(5, 5) == "1"
 
-
-    if dx ~= 0 then p.dir = dx end
+    if input.dx ~= 0 then p.dir = input.dx end
 
 	-- running
-    p.vx = clamp(dx * 1.5, p.vx - 0.25, p.vx + 0.25)
+	local acc = p.in_air and 0.2 or 0.5
+	p.vx = clamp(input.dx * 1.75, p.vx - acc, p.vx + acc)
 
 	-- jumping
-	if not p.in_air and jump and not p.old_jump then
+	if not p.in_air and input.jump and not p.old_jump then
         p.vy           = -5
         p.jump_control = true
         p.in_air       = true
 	end
     if p.in_air then
         if p.jump_control then
-            if not jump and p.vy < -1 then
+            if not input.jump and p.vy < -1 then
                 p.vy = -1
                 p.jump_control = false
             end
             if p.vy > -1 then p.jump_control = false end
         end
     end
+	p.old_jump = input.jump
+
+
+	-- shooting
+    if input.shoot and p.shoot_delay == 0 then
+        p.shoot_delay = 10
+		table.insert(self.bullets, {
+			player = p,
+			tick   = 0,
+			x      = p.x,
+			y      = p.y,
+			dir    = p.dir,
+		})
+    end
+    if p.shoot_delay > 0 then p.shoot_delay = p.shoot_delay - 1 end
+
 
     -- gravity
     p.vy = p.vy + 0.2
     local vy = clamp(p.vy, -3, 3)
-
     p.in_air = true
-
 
 
 
 	-- horizontal movement
 	p.x = p.x + p.vx
-
-	local b = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-	local cx = self:collision(b, "x")
+	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
+	local cx = self:collision(box, "x")
 	if cx ~= 0 then
 		p.x = p.x + cx
 		p.vx = 0
@@ -165,9 +177,8 @@ function world:update_player(p)
 
 	-- vertical movement
 	p.y = p.y + vy
-
-	local b = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-	local cy = self:collision(b, "y", vy)
+	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
+	local cy = self:collision(box, "y", vy)
 	if cy ~= 0 then
 		p.y = p.y + cy
 		p.vy = 0
@@ -177,24 +188,43 @@ function world:update_player(p)
 	end
 
 
-	--
-	p.old_jump = jump
 end
 function world:update()
 	self.tick = self.tick + 1
-	for i, p in pairs(self.players) do
+	for _, p in pairs(self.players) do
 		self:update_player(p)
+	end
+	for i, b in pairs(self.bullets) do
+		b.tick = b.tick + 1
+		if b.tick > 25 then
+			self.bullets[i] = nil
+		end
+
+		b.x = b.x + b.dir * 7
+
+		local box = { x = b.x - 7, y = b.y - 2, w = 14, h = 4 }
+		local cx = self:collision(box, "x")
+		if cx ~= 0 then
+			self.bullets[i] = nil
+		end
+
 	end
 
 	self:encode_state()
 end
 function world:encode_state()
-	local state = ""
+	local state = {}
 	for nr, p in ipairs(self.players) do
 		p.nr = nr
-		state = state .. " " .. p.x .. " " .. p.y .. " " .. p.dir
+		state[#state + 1] = " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.client.name
 	end
-	self.state = state
+
+	state[#state + 1] = " #"
+	for _, b in pairs(self.bullets) do
+		state[#state + 1] = " " .. b.x .. " " .. b.y .. " " .. b.dir
+	end
+
+	self.state = table.concat(state)
 end
 function world:get_player_state(client)
 	return client.player.nr .. " " .. self.state
@@ -204,7 +234,9 @@ end
 local G = love.graphics
 client_world = {}
 function client_world:init()
+	G.setFont(G.newFont(10))
 	self.players = {}
+	self.bullets = {}
 end
 function client_world:decode_state(state)
 	local n = state:gmatch("([^ ]+)")
@@ -212,12 +244,25 @@ function client_world:decode_state(state)
 	local nr = tonumber(n())
 
 	self.players = {}
+	self.bullets = {}
+
+	while true do
+		local x = n()
+		if x == "#" then break end
+		table.insert(self.players, {
+			x    = tonumber(x),
+			y    = tonumber(n()),
+			dir  = tonumber(n()),
+			name = n(),
+		})
+	end
+
 	while true do
 		local x = n()
 		if not x then break end
-		table.insert(self.players, {
-			x = tonumber(x),
-			y = tonumber(n()),
+		table.insert(self.bullets, {
+			x   = tonumber(x),
+			y   = tonumber(n()),
 			dir = tonumber(n()),
 		})
 	end
@@ -226,7 +271,7 @@ function client_world:decode_state(state)
 end
 function client_world:draw()
 	G.push()
-	local cam = world.spawns[1]
+	local cam = world.spawning_points[1]
 	if self.player then cam = self.player end
 
 	G.translate(W/2 - cam.x, H/2 - cam.y)
@@ -253,17 +298,32 @@ function client_world:draw()
 	end
 
 
-
-	G.setColor(100, 100, 100)
-	for nr, p in ipairs(self.players) do
-		if p ~= self.player then
-			G.circle("fill", p.x, p.y, 7)
+	G.setColor(255, 255, 100)
+	for nr, b in ipairs(self.bullets) do
+		if b.dir > 0 then
+			G.polygon("fill",
+				b.x - 7, b.y - 2,
+				b.x + 7, b.y,
+				b.x - 7, b.y + 2)
+		else
+			G.polygon("fill",
+				b.x + 7, b.y - 2,
+				b.x - 7, b.y,
+				b.x + 7, b.y + 2)
 		end
+--		G.rectangle("fill", b.x - 7, b.y - 2, 14, 4)
 	end
-	if self.player then
-		local p = self.player
-		G.setColor(255, 100, 100)
+
+
+	for nr, p in ipairs(self.players) do
+		if p == self.player then
+			G.setColor(255, 100, 100)
+		else
+			G.setColor(100, 100, 100)
+		end
 		G.circle("fill", p.x, p.y, 7)
+		G.setColor(255, 255, 255)
+		G.printf(p.name, p.x - 100, p.y - 20, 200, "center")
 	end
 
 	G.pop()
