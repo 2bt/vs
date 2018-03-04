@@ -226,7 +226,7 @@ end
 local G = love.graphics
 ClientWorld = {}
 function ClientWorld:init()
-	G.setFont(G.newFont(6))
+	G.setFont(G.newFont(10))
 	self.players = {}
 	self.bullets = {}
 end
@@ -311,12 +311,16 @@ function ClientWorld:draw()
 		if p == self.player then
 			G.setColor(255, 100, 100)
 		else
+			G.setColor(255, 255, 255)
+			G.push()
+			G.translate(p.x, p.y - 22)
+			G.scale(0.5)
+			G.printf(p.name, -100, 0, 200, "center")
+			G.pop()
 			G.setColor(150, 150, 150)
 		end
 		G.circle("fill", p.x, p.y, 7)
 
-		G.setColor(255, 255, 255)
-		G.printf(p.name, p.x - 100, p.y - 23, 200, "center")
 
 		G.setColor(255, 255, 255, 50)
 		G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
