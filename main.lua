@@ -1,3 +1,14 @@
+local name = arg[2]
+local host = arg[3]
+if not name then
+	print("need more args:")
+	print("1. player name")
+	print("2. server address (optional)")
+	love.event.quit()
+	return
+end
+
+require("helper")
 require("world")
 require("network")
 
@@ -7,18 +18,12 @@ local G = love.graphics
 W = 320
 H = 180
 love.mouse.setVisible(false)
---G.setDefaultFilter("nearest", "nearest")
 
 
-world:init()
-client_world:init()
-
-
-local name = arg[2]
-local host = arg[3]
-
-if not host then server:init() end
-client:init(name, host)
+World:init()
+ClientWorld:init()
+if not host then Server:init() end
+Client:init(name, host)
 
 
 function love.update()
@@ -27,17 +32,17 @@ function love.update()
 	end
 
 	-- client sends input
-	client:send_input()
+	Client:send_input()
 
 	-- update server
-	server:update()
+	Server:update()
 
 	-- receive encoded game state
-	local state = client.receive_state()
+	local state = Client:receive_state()
 
 	-- decode game state
 	if state then
-		client_world:decode_state(state)
+		ClientWorld:decode_state(state)
 	end
 end
 function love.draw()
@@ -62,6 +67,6 @@ function love.draw()
 
 	G.clear(0, 0, 0)
 
-	client_world:draw()
+	ClientWorld:draw()
 
 end

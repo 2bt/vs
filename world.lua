@@ -1,30 +1,8 @@
-function collision(a, b, axis)
-	if a.x >= b.x + b.w
-	or a.y >= b.y + b.h
-	or a.x + a.w <= b.x
-	or a.y + a.h <= b.y then return 0 end
-
-	local dx = b.x + b.w - a.x
-	local dy = b.y + b.h - a.y
-
-	local dx2 = b.x - a.x - a.w
-	local dy2 = b.y - a.y - a.h
-
-	if axis == "x" then
-		return math.abs(dx) < math.abs(dx2) and dx or dx2
-	else
-		return math.abs(dy) < math.abs(dy2) and dy or dy2
-	end
-end
-function clamp(v, min, max)
-	return math.max(min, math.min(max, v))
-end
-
 TILE_SIZE = 16
 
 
-world = {}
-function world:init()
+World = {}
+function World:init()
 	self.tick = 0
 	self.players = {}
 	self.bullets = {}
@@ -48,14 +26,14 @@ function world:init()
 		y = y + 1
 	end
 end
-function world:tile_at(x, y)
+function World:tile_at(x, y)
 	x = x + 1
 	y = y + 1
 	local l = self.tiles[y]
 	if not l or x < 1 or x > #l then return "0" end
 	return l:sub(x, x)
 end
-function world:collision(box, axis, vel_y)
+function World:collision(box, axis, vel_y)
 	vel_y = vel_y or 0
 
 	local x1 = math.floor(box.x / TILE_SIZE)
@@ -92,7 +70,7 @@ function world:collision(box, axis, vel_y)
 end
 
 
-function world:add_player(client)
+function World:add_player(client)
 	local p = { client = client }
 	client.player = p
 	table.insert(self.players, p)
@@ -109,8 +87,9 @@ function world:add_player(client)
 	p.old_jump     = false
 	p.jump_control = true
 	p.shoot_delay  = 0
+	p.health       = 100
 end
-function world:remove_player(client)
+function World:remove_player(client)
 	for i, p in ipairs(self.players) do
 		if p.client == client then
 			table.remove(self.players, i)
@@ -118,7 +97,7 @@ function world:remove_player(client)
 		end
 	end
 end
-function world:update_player(p)
+function World:update_player(p)
 	local input = p.client.input
 
     if input.dx ~= 0 then p.dir = input.dx end
@@ -186,14 +165,17 @@ function world:update_player(p)
 			p.in_air = false
 		end
 	end
-
-
 end
-function world:update()
+function World:update()
 	self.tick = self.tick + 1
+
+	-- players
 	for _, p in pairs(self.players) do
 		self:update_player(p)
 	end
+
+
+	-- bullets
 	for i, b in pairs(self.bullets) do
 		b.tick = b.tick + 1
 		if b.tick > 25 then
@@ -202,21 +184,31 @@ function world:update()
 
 		b.x = b.x + b.dir * 7
 
-		local box = { x = b.x - 7, y = b.y - 2, w = 14, h = 4 }
+		local box = { x = b.x - 5, y = b.y - 1, w = 10, h = 2 }
 		local cx = self:collision(box, "x")
 		if cx ~= 0 then
 			self.bullets[i] = nil
+		end
+
+		for _, p in pairs(self.players) do
+			if b.player ~= p then
+				local box2 = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
+				if collision(box, box2) ~= 0 then
+					self.bullets[i] = nil
+					p.health = math.max(p.health - 10, 0)
+				end
+			end
 		end
 
 	end
 
 	self:encode_state()
 end
-function world:encode_state()
+function World:encode_state()
 	local state = {}
 	for nr, p in ipairs(self.players) do
 		p.nr = nr
-		state[#state + 1] = " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.client.name
+		state[#state + 1] = " " .. p.client.name .. " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.health
 	end
 
 	state[#state + 1] = " #"
@@ -226,19 +218,19 @@ function world:encode_state()
 
 	self.state = table.concat(state)
 end
-function world:get_player_state(client)
+function World:get_player_state(client)
 	return client.player.nr .. " " .. self.state
 end
 
 
 local G = love.graphics
-client_world = {}
-function client_world:init()
-	G.setFont(G.newFont(10))
+ClientWorld = {}
+function ClientWorld:init()
+	G.setFont(G.newFont(6))
 	self.players = {}
 	self.bullets = {}
 end
-function client_world:decode_state(state)
+function ClientWorld:decode_state(state)
 	local n = state:gmatch("([^ ]+)")
 
 	local nr = tonumber(n())
@@ -247,21 +239,22 @@ function client_world:decode_state(state)
 	self.bullets = {}
 
 	while true do
-		local x = n()
-		if x == "#" then break end
+		local w = n()
+		if w == "#" then break end
 		table.insert(self.players, {
-			x    = tonumber(x),
-			y    = tonumber(n()),
-			dir  = tonumber(n()),
-			name = n(),
+			name   = w,
+			x      = tonumber(n()),
+			y      = tonumber(n()),
+			dir    = tonumber(n()),
+			health = tonumber(n()),
 		})
 	end
 
 	while true do
-		local x = n()
-		if not x then break end
+		local w = n()
+		if not w then break end
 		table.insert(self.bullets, {
-			x   = tonumber(x),
+			x   = tonumber(w),
 			y   = tonumber(n()),
 			dir = tonumber(n()),
 		})
@@ -269,9 +262,9 @@ function client_world:decode_state(state)
 
 	self.player = self.players[nr]
 end
-function client_world:draw()
+function ClientWorld:draw()
 	G.push()
-	local cam = world.spawning_points[1]
+	local cam = World.spawning_points[1]
 	if self.player then cam = self.player end
 
 	G.translate(W/2 - cam.x, H/2 - cam.y)
@@ -284,10 +277,10 @@ function client_world:draw()
 		local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
 		local y2 = math.floor((cam.y + H / 2) / TILE_SIZE)
 
-		G.setColor(150, 150, 150)
+		G.setColor(100, 100, 100)
 		for y = y1, y2 do
 			for x = x1, x2 do
-				local t = world:tile_at(x, y)
+				local t = World:tile_at(x, y)
 				if t == "0" then
 					G.rectangle("fill", x * 16, y * 16, 16, 16)
 				elseif t == "^" then
@@ -311,7 +304,6 @@ function client_world:draw()
 				b.x - 7, b.y,
 				b.x + 7, b.y + 2)
 		end
---		G.rectangle("fill", b.x - 7, b.y - 2, 14, 4)
 	end
 
 
@@ -319,11 +311,17 @@ function client_world:draw()
 		if p == self.player then
 			G.setColor(255, 100, 100)
 		else
-			G.setColor(100, 100, 100)
+			G.setColor(150, 150, 150)
 		end
 		G.circle("fill", p.x, p.y, 7)
+
 		G.setColor(255, 255, 255)
-		G.printf(p.name, p.x - 100, p.y - 20, 200, "center")
+		G.printf(p.name, p.x - 100, p.y - 23, 200, "center")
+
+		G.setColor(255, 255, 255, 50)
+		G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
+		G.setColor(0, 255, 0, 200)
+		G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
 	end
 
 	G.pop()
