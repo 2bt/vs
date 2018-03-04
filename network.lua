@@ -1,12 +1,14 @@
 local socket = require("socket")
-local port = 12347
+
+
+local PORT = 12347
 
 
 server = {}
 function server:init()
 	self.udp = socket.udp()
 	self.udp:settimeout(0)
-	self.udp:setsockname("*", port)
+	self.udp:setsockname("*", PORT)
 
 	self.clients          = {}
 	self.tick             = 0
@@ -55,12 +57,9 @@ function server:update()
 	-- update game state
 	world:update()
 
-	-- encode state
-	local state = world:encode_state()
-
 	-- send state to clients
 	for k, client in pairs(self.clients) do
-		self.udp:sendto(state, client.ip, client.port)
+		self.udp:sendto(world:get_player_state(client), client.ip, client.port)
 	end
 end
 
@@ -69,7 +68,7 @@ client = {}
 function client:init(host)
 	self.udp = socket.udp()
 	self.udp:settimeout(0)
-	local ok, err = self.udp:setpeername(host, port)
+	local ok, err = self.udp:setpeername(host, PORT)
 	if not ok then
 		print("error:", err)
 		love.event.quit(1)
