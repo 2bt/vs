@@ -100,6 +100,14 @@ function World:remove_player(client)
 		end
 	end
 end
+function World:hit_player(p, value)
+	p.health = math.max(p.health - value, 0)
+	-- player death
+	if p.health == 0 then
+		p.tick = 0
+		self:event({ "d", p.x, p.y })
+	end
+end
 function World:update_player(p)
 	p.tick = p.tick + 1
 
@@ -184,6 +192,24 @@ function World:update_player(p)
 			p.in_air = false
 		end
 	end
+
+	-- collision with players
+	if vy > 0 then
+		for _, q in pairs(self.players) do
+			if q ~= p and q.health > 0 then
+				if p.y + 14 > q.y and p.y + 14 - vy <= q.y
+				and math.abs(p.x - q.x) < 8 then
+					-- jump on other player
+					p.vy = -4
+					self:hit_player(q, 50)
+					if q.health == 0 then
+						p.score = p.score + 1
+					end
+				end
+			end
+		end
+	end
+
 end
 function World:event(e)
 	e.tick = self.tick
@@ -226,11 +252,9 @@ function World:update()
 
 					p.vx = p.vx + b.dir * 3
 					p.vy = p.vy - 1.5
-					p.health = math.max(p.health - 25, 0)
+					self:hit_player(p, 25)
 					if p.health == 0 then
-						-- player just died
 						b.player.score = b.player.score + 1
-						self:event({ "d", p.x, p.y })
 					end
 				end
 			end
