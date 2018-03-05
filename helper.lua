@@ -29,8 +29,10 @@ function collision(a, b, axis)
 
 	if axis == "x" then
 		return math.abs(dx) < math.abs(dx2) and dx or dx2
-	else
+	elseif axis == "y" then
 		return math.abs(dy) < math.abs(dy2) and dy or dy2
+	else
+		return 1
 	end
 end
 

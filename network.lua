@@ -40,6 +40,9 @@ function Server:update()
 		local client = self.clients[k]
 		client.last_receive_tick = self.tick
 
+--		if client.id == 2 then
+--			data = "1000" .. (self.tick % 40 < 30 and 1 or 0) .."0foobar"
+--		end
 		-- interpret data
 		client.input = {
 			dx = tonumber(data:sub(1, 1)) - tonumber(data:sub(2, 2)),

@@ -50,17 +50,22 @@ function World:collision(box, axis, vel_y)
 		for y = y1, y2 do
 
 			local t = self:tile_at(x, y)
-			if t == "0" or t == "^" then
-
+			if t == "0" or t == "^"
+			or t == "L"
+			then
 				b.x = x * TILE_SIZE
 				b.y = y * TILE_SIZE
-
 				local e = collision(box, b, axis)
 
-				if t == "0" then
-					if math.abs(e) > math.abs(d) then d = e end
-				elseif t == "^" then
-					if axis == "y" and vel_y > 0 and e < 0 and -e <= vel_y + 0.001 then d = e end
+				if axis == "death" then
+					-- lava
+					if t == "L" and e > 0 then return 1 end
+				else
+					if t == "0" then
+						if math.abs(e) > math.abs(d) then d = e end
+					elseif t == "^" then
+						if axis == "y" and vel_y > 0 and e < 0 and -e <= vel_y + 0.001 then d = e end
+					end
 				end
 
 			end
@@ -209,6 +214,12 @@ function World:update_player(p)
 				end
 			end
 		end
+	end
+
+	-- lava
+	if World:collision(box, "death") == 1 then
+		World:hit_player(p, 100)
+		p.score = p.score - 1
 	end
 
 end
@@ -435,23 +446,14 @@ function ClientWorld:draw()
 	G.translate(W/2 - cam.x, H/2 - cam.y)
 
 
-	-- map
-	do
-		local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
-		local x2 = math.floor((cam.x + W / 2) / TILE_SIZE)
-		local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
-		local y2 = math.floor((cam.y + H / 2) / TILE_SIZE)
-		G.setColor(100, 100, 100)
-		for y = y1, y2 do
-			for x = x1, x2 do
-				local t = World:tile_at(x, y)
-				if t == "0" then
-					G.rectangle("fill", x * 16, y * 16, 16, 16)
-				elseif t == "^" then
-					G.rectangle("fill", x * 16, y * 16, 16, 4)
-				end
-			end
+	-- particles
+	for _, p in pairs(self.particles) do
+		if p.type == "b" then
+			G.setColor(255, 255, 100)
+		elseif p.type == "d" then
+			G.setColor(255, 0, 0)
 		end
+		G.circle("fill", p.x, p.y, math.min(p.radius, p.ttl / 10), 5)
 	end
 
 
@@ -460,6 +462,31 @@ function ClientWorld:draw()
 	for nr, b in ipairs(self.bullets) do
 		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
 	end
+
+
+	-- map
+	do
+		local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
+		local x2 = math.floor((cam.x + W / 2) / TILE_SIZE)
+		local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
+		local y2 = math.floor((cam.y + H / 2) / TILE_SIZE)
+		for y = y1, y2 do
+			for x = x1, x2 do
+				local t = World:tile_at(x, y)
+				if t == "0" then
+					G.setColor(100, 100, 100)
+					G.rectangle("fill", x * 16, y * 16, 16, 16)
+				elseif t == "^" then
+					G.setColor(100, 100, 100)
+					G.rectangle("fill", x * 16, y * 16, 16, 4)
+				elseif t == "L" then
+					G.setColor(180, 0, 0)
+					G.rectangle("fill", x * 16, y * 16, 16, 16)
+				end
+			end
+		end
+	end
+
 
 	-- players
 	for nr, p in ipairs(self.players) do
@@ -489,16 +516,6 @@ function ClientWorld:draw()
 			G.setColor(0, 255, 0, 200)
 			G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
 		end
-	end
-
-	-- particles
-	for _, p in pairs(self.particles) do
-		if p.type == "b" then
-			G.setColor(255, 255, 100)
-		elseif p.type == "d" then
-			G.setColor(255, 0, 0)
-		end
-		G.circle("fill", p.x, p.y, math.min(p.radius, p.ttl / 10), 5)
 	end
 
 
