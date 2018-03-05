@@ -148,7 +148,7 @@ function World:update_player(p)
         p.shoot_delay = 50
 		table.insert(self.bullets, {
 			player = p,
-			tick   = 0,
+			ttl    = 30,
 			x      = p.x,
 			y      = p.y,
 			dir    = p.dir,
@@ -200,8 +200,8 @@ function World:update()
 
 	-- bullets
 	for i, b in pairs(self.bullets) do
-		b.tick = b.tick + 1
-		if b.tick > 30 then
+		b.ttl = b.ttl - 1
+		if b.ttl < 0 then
 			self.bullets[i] = nil
 		end
 
@@ -211,8 +211,6 @@ function World:update()
 		local cx = self:collision(box, "x")
 		if cx ~= 0 then
 			self.bullets[i] = nil
-
-			-- bullet particle
 			self:event({ "b", b.x + cx + b.dir * 7, b.y })
 		end
 
@@ -224,15 +222,14 @@ function World:update()
 				if cx ~= 0 then
 					self.bullets[i] = nil
 
-					-- bullet particle
 					self:event({ "b", b.x + cx + b.dir * 6, b.y, b.dir })
 
-
-					p.health = math.max(p.health - 30, 0)
+					p.vx = p.vx + b.dir * 3
+					p.vy = p.vy - 1.5
+					p.health = math.max(p.health - 25, 0)
 					if p.health == 0 then
 						-- player just died
 						b.player.score = b.player.score + 1
-						p.tick = 0
 						self:event({ "d", p.x, p.y })
 					end
 				end
@@ -362,7 +359,7 @@ function ClientWorld:process_event(e)
 			local s = math.random() * 4 + 2
 			table.insert(self.particles, {
 				type   = "d",
-				ttl    = math.random(30, 50),
+				ttl    = math.random(40, 80),
 				x      = tonumber(e[2]),
 				y      = tonumber(e[3]),
 				vx     = math.sin(a) * s,
@@ -443,18 +440,25 @@ function ClientWorld:draw()
 	for nr, p in ipairs(self.players) do
 		if p.health > 0 then
 			if p == self.player then
-				G.setColor(255, 100, 100)
+				G.setColor(100, 100, 255)
 			else
+				-- name
 				G.setColor(255, 255, 255)
 				G.push()
 				G.translate(p.x, p.y - 22)
 				G.scale(0.5)
 				G.printf(p.name, -100, 0, 200, "center")
 				G.pop()
-				G.setColor(150, 150, 150)
+
+				G.setColor(255, 100, 100)
 			end
 			G.circle("fill", p.x, p.y, 7)
 
+			-- weapon
+			G.setColor(200, 200, 200)
+			G.rectangle("fill", p.x - 5 + p.dir * 3, p.y  -1.5, 10, 3)
+
+			-- health
 			G.setColor(255, 255, 255, 50)
 			G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
 			G.setColor(0, 255, 0, 200)
