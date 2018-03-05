@@ -298,7 +298,7 @@ function World:update()
 	end
 
 	-- remove events
-	while self.events[1] and self.tick - self.events[1].tick > 5 do
+	while self.events[1] and self.tick - self.events[1].tick > 3 do
 		table.remove(self.events, 1)
 	end
 
@@ -507,7 +507,7 @@ function ClientWorld:draw()
 		G.push()
 		G.translate(p.x, p.y)
 		G.rotate(p.ang)
-		G.circle("fill", 0, 0, math.min(p.radius, p.ttl / 10), 5)
+		G.circle("fill", 0, 0, math.min(p.radius * 1.1, p.ttl / 10), 5)
 		G.pop()
 	end
 
@@ -535,11 +535,24 @@ function ClientWorld:draw()
 			for x = x1, x2 do
 				local t = World:tile_at(x, y)
 				if t == "0" then
-					G.setColor(100, 100, 100)
+					G.setColor(110, 80, 120)
 					G.rectangle("fill", x * 16, y * 16, 16, 16)
+					local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
+					if d < 1 then
+						G.setColor(60, 80, 90)
+						G.rectangle("fill", x * 16 + 2, y * 16 + 3, 7, 6)
+					elseif d < 2 then
+						G.setColor(100, 80, 100)
+						G.rectangle("fill", x * 16, y * 16, 16, 16)
+						G.setColor(60, 60, 80)
+						G.rectangle("fill", x * 16 + 1, y * 16 + 1, 2, 2)
+						G.rectangle("fill", x * 16 + 1, y * 16 + 13, 2, 2)
+						G.rectangle("fill", x * 16 + 13, y * 16 + 1, 2, 2)
+						G.rectangle("fill", x * 16 + 13, y * 16 + 13, 2, 2)
+					end
 				elseif t == "^" then
-					G.setColor(100, 100, 100)
-					G.rectangle("fill", x * 16, y * 16, 16, 4)
+					G.setColor(130, 80, 50)
+					G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 15, 3)
 				elseif t == "L" then
 					G.setColor(130, 0, 0)
 					G.push()

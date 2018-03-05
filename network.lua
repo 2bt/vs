@@ -33,7 +33,7 @@ function Server:update()
 				port  = port,
 				id    = self.clint_id_counter,
 				tick  = 0,
-				name  = data:sub(7):gsub(" ", "_"),
+				name  = data:sub(7, 22):gsub(" ", "_"),
 			}
 			World:add_player(self.clients[k])
 		end
