@@ -117,8 +117,8 @@ function World:update_player(p)
     if input.dx ~= 0 then p.dir = input.dx end
 
 	-- running
-	local acc = p.in_air and 0.2 or 0.5
-	p.vx = clamp(input.dx * 1.75, p.vx - acc, p.vx + acc)
+	local acc = p.in_air and 0.1 or 0.5
+	p.vx = clamp(input.dx * 2, p.vx - acc, p.vx + acc)
 
 	-- jumping
 	local fall_though = false
@@ -126,7 +126,7 @@ function World:update_player(p)
 		if input.dy > 0 then
 			fall_though = true
 		else
-			p.vy           = -5
+			p.vy           = -5.2
 			p.jump_control = true
 			p.in_air       = true
 		end
