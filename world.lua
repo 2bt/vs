@@ -7,9 +7,10 @@ function World:init()
 	self.events  = {}
 	self.players = {}
 	self.bullets = {}
+	self.items   = {}
+
 	self.tiles   = {}
 	self.spawning_points = {}
-
 	local y = 0
 	for line in love.filesystem.lines("assets/map.txt") do
 		self.tiles[#self.tiles + 1] = line
@@ -18,6 +19,12 @@ function World:init()
 		for t in line:gmatch(".") do
 			if t == "@" then
 				table.insert(self.spawning_points, {
+					x = x * TILE_SIZE + TILE_SIZE / 2,
+					y = y * TILE_SIZE + TILE_SIZE / 2,
+				})
+			elseif t == "+" then
+				table.insert(self.items, {
+					type = "+",
 					x = x * TILE_SIZE + TILE_SIZE / 2,
 					y = y * TILE_SIZE + TILE_SIZE / 2,
 				})
@@ -297,6 +304,12 @@ function World:encode_state()
 	end
 	state[#state + 1] = " #"
 
+	-- items
+	for _, i in pairs(self.items) do
+		state[#state + 1] = " " .. i.type .. " " .. i.x .. " " .. i.y
+	end
+	state[#state + 1] = " #"
+
 	-- events
 	for _, e in ipairs(self.events) do
 		state[#state + 1] = " " .. e.tick .. " " .. table.concat(e, " ") .. " #"
@@ -313,8 +326,10 @@ end
 local G = love.graphics
 ClientWorld = {}
 function ClientWorld:init()
+	self.tick       = 0
 	self.players    = {}
 	self.bullets    = {}
+	self.items      = {}
 	self.particles  = {}
 	self.event_tick = 0
 end
@@ -325,6 +340,7 @@ function ClientWorld:decode_state(state)
 
 	self.players = {}
 	self.bullets = {}
+	self.items   = {}
 
 	-- players
 	while true do
@@ -350,6 +366,18 @@ function ClientWorld:decode_state(state)
 			dir = tonumber(n()),
 		})
 	end
+
+	-- items
+	while true do
+		local w = n()
+		if w == "#" then break end
+		table.insert(self.items, {
+			type = w,
+			x    = tonumber(n()),
+			y    = tonumber(n()),
+		})
+	end
+
 
 	-- events
 	local event_tick = self.event_tick
@@ -406,6 +434,8 @@ function ClientWorld:process_event(e)
 	end
 end
 function ClientWorld:update()
+	self.tick = self.tick + 1
+
 	for i, p in pairs(self.particles) do
 		p.ttl = p.ttl - 1
 		if p.ttl < 0 then
@@ -459,7 +489,7 @@ function ClientWorld:draw()
 
 	-- bullets
 	G.setColor(255, 255, 100)
-	for nr, b in ipairs(self.bullets) do
+	for _, b in ipairs(self.bullets) do
 		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
 	end
 
@@ -487,6 +517,18 @@ function ClientWorld:draw()
 		end
 	end
 
+	for _, i in ipairs(self.items) do
+		if i.type == "+" then
+			G.setColor(255, 255, 0)
+			G.push()
+			G.translate(i.x, i.y)
+			G.rotate(math.sin(self.tick * 0.04) * 2)
+			G.circle("line", 0, 0, 5, 6)
+			G.rectangle("fill", -2.5, -0.5, 5, 1)
+			G.rectangle("fill", -0.5, -2.5, 1, 5)
+			G.pop()
+		end
+	end
 
 	-- players
 	for nr, p in ipairs(self.players) do
