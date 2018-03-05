@@ -76,6 +76,7 @@ function World:spawn_player(p)
 	p.tick         = 0
 	p.x            = spawn.x
 	p.y            = spawn.y
+	p.oy           = p.y
 	p.vx           = 0
 	p.vy           = 0
 	p.in_air       = true
@@ -182,6 +183,7 @@ function World:update_player(p)
 	end
 
 	-- vertical movement
+	p.oy = p.y
 	p.y = p.y + vy
 	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
 	local cy = self:collision(box, "y", not fall_though and vy)
@@ -194,17 +196,16 @@ function World:update_player(p)
 	end
 
 	-- collision with players
-	if vy > 0 then
-		for _, q in pairs(self.players) do
-			if q ~= p and q.health > 0 then
-				if p.y + 14 > q.y and p.y + 14 - vy <= q.y
-				and math.abs(p.x - q.x) < 8 then
-					-- jump on other player
-					p.vy = -4
-					self:hit_player(q, 50)
-					if q.health == 0 then
-						p.score = p.score + 1
-					end
+	for _, q in pairs(self.players) do
+		if q ~= p and q.health > 0 then
+			if p.y + 14 > q.y and p.oy + 14 <= q.oy
+			and math.abs(p.x - q.x) < 8 then
+				-- jump on other player
+				p.vy = -4
+				q.vy = 2
+				self:hit_player(q, 50)
+				if q.health == 0 then
+					p.score = p.score + 1
 				end
 			end
 		end
