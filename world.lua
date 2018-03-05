@@ -70,14 +70,9 @@ function World:collision(box, axis, vel_y)
 end
 
 
-function World:add_player(client)
-	local p = { client = client }
-	client.player = p
-	table.insert(self.players, p)
-
-	-- spawn from random spawning point
+function World:spawn_player(p)
 	local spawn = self.spawning_points[math.random(#self.spawning_points)]
-
+	p.tick         = 0
 	p.x            = spawn.x
 	p.y            = spawn.y
 	p.vx           = 0
@@ -89,6 +84,13 @@ function World:add_player(client)
 	p.shoot_delay  = 0
 	p.health       = 100
 end
+function World:add_player(client)
+	local p = { client = client }
+	client.player = p
+	table.insert(self.players, p)
+	self:spawn_player(p)
+	p.score = 0
+end
 function World:remove_player(client)
 	for i, p in ipairs(self.players) do
 		if p.client == client then
@@ -98,7 +100,16 @@ function World:remove_player(client)
 	end
 end
 function World:update_player(p)
+	p.tick = p.tick + 1
+
 	local input = p.client.input
+	if p.health == 0 then
+		if input.jump and p.tick > 60 then
+			self:spawn_player(p)
+		end
+		return
+	end
+
 
     if input.dx ~= 0 then p.dir = input.dx end
 
@@ -191,11 +202,16 @@ function World:update()
 		end
 
 		for _, p in pairs(self.players) do
-			if b.player ~= p then
+			if b.player ~= p and p.health > 0 then
 				local box2 = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
 				if collision(box, box2) ~= 0 then
 					self.bullets[i] = nil
 					p.health = math.max(p.health - 10, 0)
+					if p.health == 0 then
+						-- player just died
+						b.player.score = b.player.score + 1
+						p.tick = 0
+					end
 				end
 			end
 		end
@@ -208,7 +224,7 @@ function World:encode_state()
 	local state = {}
 	for nr, p in ipairs(self.players) do
 		p.nr = nr
-		state[#state + 1] = " " .. p.client.name .. " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.health
+		state[#state + 1] = " " .. p.client.name .. " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.health .. " " .. p.score
 	end
 
 	state[#state + 1] = " #"
@@ -247,6 +263,7 @@ function ClientWorld:decode_state(state)
 			y      = tonumber(n()),
 			dir    = tonumber(n()),
 			health = tonumber(n()),
+			score  = tonumber(n()),
 		})
 	end
 
@@ -266,17 +283,15 @@ function ClientWorld:draw()
 	G.push()
 	local cam = World.spawning_points[1]
 	if self.player then cam = self.player end
-
 	G.translate(W/2 - cam.x, H/2 - cam.y)
 
 
-	-- draw map
+	-- map
 	do
 		local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
 		local x2 = math.floor((cam.x + W / 2) / TILE_SIZE)
 		local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
 		local y2 = math.floor((cam.y + H / 2) / TILE_SIZE)
-
 		G.setColor(100, 100, 100)
 		for y = y1, y2 do
 			for x = x1, x2 do
@@ -291,6 +306,7 @@ function ClientWorld:draw()
 	end
 
 
+	-- bullets
 	G.setColor(255, 255, 100)
 	for nr, b in ipairs(self.bullets) do
 		if b.dir > 0 then
@@ -306,27 +322,47 @@ function ClientWorld:draw()
 		end
 	end
 
-
+	-- players
 	for nr, p in ipairs(self.players) do
-		if p == self.player then
-			G.setColor(255, 100, 100)
-		else
-			G.setColor(255, 255, 255)
-			G.push()
-			G.translate(p.x, p.y - 22)
-			G.scale(0.5)
-			G.printf(p.name, -100, 0, 200, "center")
-			G.pop()
-			G.setColor(150, 150, 150)
+		if p.health > 0 then
+			if p == self.player then
+				G.setColor(255, 100, 100)
+			else
+				G.setColor(255, 255, 255)
+				G.push()
+				G.translate(p.x, p.y - 22)
+				G.scale(0.5)
+				G.printf(p.name, -100, 0, 200, "center")
+				G.pop()
+				G.setColor(150, 150, 150)
+			end
+			G.circle("fill", p.x, p.y, 7)
+
+
+			G.setColor(255, 255, 255, 50)
+			G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
+			G.setColor(0, 255, 0, 200)
+			G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
 		end
-		G.circle("fill", p.x, p.y, 7)
-
-
-		G.setColor(255, 255, 255, 50)
-		G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
-		G.setColor(0, 255, 0, 200)
-		G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
 	end
 
 	G.pop()
+
+
+	-- score
+	G.setColor(255, 255, 255)
+	table.sort(self.players, function(a, b) return a.score > b.score end)
+	for i, p in ipairs(self.players) do
+		G.push()
+		G.translate(3, 1 + 6 * (i - 1))
+		G.scale(0.5)
+		G.print(("%-20s"):format(p.name), 0, 0)
+		G.pop()
+
+		G.push()
+		G.translate(30, 1 + 6 * (i - 1))
+		G.scale(0.5)
+		G.print(("%3d"):format(p.score), 0, 0)
+		G.pop()
+	end
 end
