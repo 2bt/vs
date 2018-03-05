@@ -18,7 +18,7 @@ local G = love.graphics
 W = 320
 H = 180
 love.mouse.setVisible(false)
-G.setFont(G.newFont(10))
+G.setFont(G.newFont(14))
 
 
 World:init()

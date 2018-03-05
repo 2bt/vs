@@ -226,9 +226,12 @@ function World:update_player(p)
 
 	-- items
 	for _, i in ipairs(self.items) do
-		if i.tick > 0 and collision(box, { x = i.x - 4, y = i.y - 4, w = 8, h = 8 }) ~= 0 then
-			i.tick   = -1000
-			p.health = math.min(p.health + 50, 100)
+		if i.type == "+" then
+			if i.tick > 0 and p.health < 100
+			and collision(box, { x = i.x - 4, y = i.y - 4, w = 8, h = 8 }) ~= 0 then
+				i.tick   = -1000
+				p.health = math.min(p.health + 50, 100)
+			end
 		end
 	end
 
@@ -518,6 +521,12 @@ function ClientWorld:draw()
 
 	-- map
 	do
+		local lava_poly = { TILE_SIZE, TILE_SIZE, 0, TILE_SIZE }
+		for i = 0, TILE_SIZE, TILE_SIZE / 3 do
+			lava_poly[#lava_poly + 1] = i
+			lava_poly[#lava_poly + 1] = math.sin(i / TILE_SIZE * 2 * math.pi + self.tick * 0.1) * 2
+		end
+
 		local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
 		local x2 = math.floor((cam.x + W / 2) / TILE_SIZE)
 		local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
@@ -532,8 +541,11 @@ function ClientWorld:draw()
 					G.setColor(100, 100, 100)
 					G.rectangle("fill", x * 16, y * 16, 16, 4)
 				elseif t == "L" then
-					G.setColor(180, 0, 0)
-					G.rectangle("fill", x * 16, y * 16, 16, 16)
+					G.setColor(130, 0, 0)
+					G.push()
+					G.translate(x * 16, y * 16)
+					G.polygon("fill", lava_poly)
+					G.pop()
 				end
 			end
 		end
@@ -563,7 +575,7 @@ function ClientWorld:draw()
 				G.setColor(255, 255, 255)
 				G.push()
 				G.translate(p.x, p.y - 22)
-				G.scale(0.5)
+				G.scale(0.4)
 				G.printf(p.name, -100, 0, 200, "center")
 				G.pop()
 
@@ -593,13 +605,13 @@ function ClientWorld:draw()
 	for i, p in ipairs(self.players) do
 		G.push()
 		G.translate(3, 1 + 6 * (i - 1))
-		G.scale(0.5)
+		G.scale(0.4)
 		G.print(("%-20s"):format(p.name), 0, 0)
 		G.pop()
 
 		G.push()
 		G.translate(30, 1 + 6 * (i - 1))
-		G.scale(0.5)
+		G.scale(0.4)
 		G.print(("%3d"):format(p.score), 0, 0)
 		G.pop()
 	end

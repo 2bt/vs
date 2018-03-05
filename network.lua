@@ -98,11 +98,15 @@ function Client:send_input()
 	end
 end
 function Client:receive_state()
-	local state, err = self.udp:receive()
-	if not state and err ~= "timeout" then
-		print("error:", err)
-		love.event.quit(1)
-		return
+	local state
+	while true do
+		local s, err = self.udp:receive()
+		if err == "timeout" then break end
+		if not s then
+			print("error:", err)
+			love.event.quit(1)
+		end
+		state = s
 	end
 	return state
 end
