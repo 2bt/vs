@@ -233,6 +233,7 @@ function World:update()
 						-- player just died
 						b.player.score = b.player.score + 1
 						p.tick = 0
+						self:event({ "d", p.x, p.y })
 					end
 				end
 			end
@@ -340,15 +341,33 @@ function ClientWorld:decode_state(state)
 end
 function ClientWorld:process_event(e)
 	if e[1] == "b" then
+		-- bullet particle
 		for i = 1, 7 do
-			local a = math.random() * 3 * math.pi
+			local a = math.random() * 2 * math.pi
 			local s = math.random() * 3
 			table.insert(self.particles, {
-				ttl = math.random(15, 35),
-				x = tonumber(e[2]),
-				y = tonumber(e[3]),
-				vx = math.sin(a) * s,
-				vy = math.cos(a) * s,
+				type   = "b",
+				ttl    = math.random(15, 35),
+				x      = tonumber(e[2]),
+				y      = tonumber(e[3]),
+				vx     = math.sin(a) * s,
+				vy     = math.cos(a) * s,
+				radius = 1,
+			})
+		end
+	elseif e[1] == "d" then
+		-- death particle
+		for i = 1, 20 do
+			local a = math.random() * 2 * math.pi
+			local s = math.random() * 4 + 2
+			table.insert(self.particles, {
+				type   = "d",
+				ttl    = math.random(30, 50),
+				x      = tonumber(e[2]),
+				y      = tonumber(e[3]),
+				vx     = math.sin(a) * s,
+				vy     = math.cos(a) * s,
+				radius = 4,
 			})
 		end
 	end
@@ -360,27 +379,29 @@ function ClientWorld:update()
 			self.particles[i] = nil
 		end
 
-		p.vx = p.vx * 0.9
-		p.vy = p.vy * 0.9
+		p.vx = p.vx * 0.95
+		p.vy = p.vy * 0.95
 		p.vy = p.vy + GRAVITY
 		local vy = clamp(p.vy, -3, 3)
 
+		local r = math.min(p.radius, p.ttl / 10)
+
 		-- horizontal movement
 		p.x = p.x + p.vx
-		local box = { x = p.x - 1, y = p.y - 1, w = 2, h = 2 }
+		local box = { x = p.x - r, y = p.y - r, w = r * 2, h = r * 2 }
 		local cx = World:collision(box, "x")
 		if cx ~= 0 then
 			p.x = p.x + cx
-			p.vx = -p.vx
+			p.vx = p.vx * -0.9
 		end
 
 		-- vertical movement
 		p.y = p.y + vy
-		local box = { x = p.x - 1, y = p.y - 1, w = 2, h = 2 }
+		local box = { x = p.x - r, y = p.y - r, w = r * 2, h = r * 2 }
 		local cy = World:collision(box, "y", vy)
 		if cy ~= 0 then
 			p.y = p.y + cy
-			p.vy = -p.vy
+			p.vy = p.vy * -0.9
 		end
 
 	end
@@ -415,17 +436,7 @@ function ClientWorld:draw()
 	-- bullets
 	G.setColor(255, 255, 100)
 	for nr, b in ipairs(self.bullets) do
-		if b.dir > 0 then
-			G.polygon("fill",
-				b.x - 7, b.y - 2,
-				b.x + 7, b.y,
-				b.x - 7, b.y + 2)
-		else
-			G.polygon("fill",
-				b.x + 7, b.y - 2,
-				b.x - 7, b.y,
-				b.x + 7, b.y + 2)
-		end
+		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
 	end
 
 	-- players
@@ -452,9 +463,13 @@ function ClientWorld:draw()
 	end
 
 	-- particles
-	G.setColor(255, 255, 100)
 	for _, p in pairs(self.particles) do
-		G.circle("fill", p.x, p.y, math.min(1, p.ttl / 10), 6)
+		if p.type == "b" then
+			G.setColor(255, 255, 100)
+		elseif p.type == "d" then
+			G.setColor(255, 0, 0)
+		end
+		G.circle("fill", p.x, p.y, math.min(p.radius, p.ttl / 10), 5)
 	end
 
 
