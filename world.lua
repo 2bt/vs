@@ -1,12 +1,13 @@
 TILE_SIZE = 16
-
+GRAVITY   = 0.2
 
 World = {}
 function World:init()
-	self.tick = 0
+	self.tick    = 0
+	self.events  = {}
 	self.players = {}
 	self.bullets = {}
-	self.tiles = {}
+	self.tiles   = {}
 	self.spawning_points = {}
 
 	local y = 0
@@ -103,6 +104,8 @@ function World:update_player(p)
 	p.tick = p.tick + 1
 
 	local input = p.client.input
+
+	-- respawn
 	if p.health == 0 then
 		if input.jump and p.tick > 60 then
 			self:spawn_player(p)
@@ -110,7 +113,7 @@ function World:update_player(p)
 		return
 	end
 
-
+	-- turn
     if input.dx ~= 0 then p.dir = input.dx end
 
 	-- running
@@ -137,7 +140,7 @@ function World:update_player(p)
 
 	-- shooting
     if input.shoot and p.shoot_delay == 0 then
-        p.shoot_delay = 10
+        p.shoot_delay = 20
 		table.insert(self.bullets, {
 			player = p,
 			tick   = 0,
@@ -150,7 +153,7 @@ function World:update_player(p)
 
 
     -- gravity
-    p.vy = p.vy + 0.2
+    p.vy = p.vy + GRAVITY
     local vy = clamp(p.vy, -3, 3)
     p.in_air = true
 
@@ -177,6 +180,10 @@ function World:update_player(p)
 		end
 	end
 end
+function World:event(e)
+	e.tick = self.tick
+	table.insert(self.events, e)
+end
 function World:update()
 	self.tick = self.tick + 1
 
@@ -189,7 +196,7 @@ function World:update()
 	-- bullets
 	for i, b in pairs(self.bullets) do
 		b.tick = b.tick + 1
-		if b.tick > 25 then
+		if b.tick > 30 then
 			self.bullets[i] = nil
 		end
 
@@ -199,13 +206,23 @@ function World:update()
 		local cx = self:collision(box, "x")
 		if cx ~= 0 then
 			self.bullets[i] = nil
+
+			-- bullet particle
+			self:event({ "b", b.x + cx + b.dir * 7, b.y })
 		end
 
+		-- collision
 		for _, p in pairs(self.players) do
 			if b.player ~= p and p.health > 0 then
 				local box2 = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-				if collision(box, box2) ~= 0 then
+				local cx = collision(box, box2, "x")
+				if cx ~= 0 then
 					self.bullets[i] = nil
+
+					-- bullet particle
+					self:event({ "b", b.x + cx + b.dir * 6, b.y, b.dir })
+
+
 					p.health = math.max(p.health - 10, 0)
 					if p.health == 0 then
 						-- player just died
@@ -215,22 +232,37 @@ function World:update()
 				end
 			end
 		end
-
 	end
+
+	-- remove events
+	while self.events[1] and self.tick - self.events[1].tick > 5 do
+		table.remove(self.events, 1)
+	end
+
 
 	self:encode_state()
 end
 function World:encode_state()
 	local state = {}
+
+	-- players
 	for nr, p in ipairs(self.players) do
 		p.nr = nr
 		state[#state + 1] = " " .. p.client.name .. " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.health .. " " .. p.score
 	end
-
 	state[#state + 1] = " #"
+
+	-- bullets
 	for _, b in pairs(self.bullets) do
 		state[#state + 1] = " " .. b.x .. " " .. b.y .. " " .. b.dir
 	end
+	state[#state + 1] = " #"
+
+	-- events
+	for _, e in ipairs(self.events) do
+		state[#state + 1] = " " .. e.tick .. " " .. table.concat(e, " ") .. " #"
+	end
+	state[#state + 1] = " #"
 
 	self.state = table.concat(state)
 end
@@ -242,9 +274,10 @@ end
 local G = love.graphics
 ClientWorld = {}
 function ClientWorld:init()
-	G.setFont(G.newFont(10))
-	self.players = {}
-	self.bullets = {}
+	self.players    = {}
+	self.bullets    = {}
+	self.particles  = {}
+	self.event_tick = 0
 end
 function ClientWorld:decode_state(state)
 	local n = state:gmatch("([^ ]+)")
@@ -254,6 +287,7 @@ function ClientWorld:decode_state(state)
 	self.players = {}
 	self.bullets = {}
 
+	-- players
 	while true do
 		local w = n()
 		if w == "#" then break end
@@ -267,9 +301,10 @@ function ClientWorld:decode_state(state)
 		})
 	end
 
+	-- bullets
 	while true do
 		local w = n()
-		if not w then break end
+		if w == "#" then break end
 		table.insert(self.bullets, {
 			x   = tonumber(w),
 			y   = tonumber(n()),
@@ -277,7 +312,73 @@ function ClientWorld:decode_state(state)
 		})
 	end
 
+	-- events
+	local event_tick = self.event_tick
+	while true do
+		local w = n()
+		if w == "#" then break end
+		local tick = tonumber(w)
+		local e = {}
+		while true do
+			local w = n()
+			if w == "#" then break end
+			e[#e + 1] = w
+		end
+		if tick > self.event_tick then
+			self:process_event(e)
+			event_tick = tick
+		end
+	end
+	self.event_tick = event_tick
+
 	self.player = self.players[nr]
+end
+function ClientWorld:process_event(e)
+	if e[1] == "b" then
+		for i = 1, 7 do
+			local a = math.random() * 3 * math.pi
+			local s = math.random() * 3
+			table.insert(self.particles, {
+				ttl = math.random(15, 35),
+				x = tonumber(e[2]),
+				y = tonumber(e[3]),
+				vx = math.sin(a) * s,
+				vy = math.cos(a) * s,
+			})
+		end
+	end
+end
+function ClientWorld:update()
+	for i, p in pairs(self.particles) do
+		p.ttl = p.ttl - 1
+		if p.ttl < 0 then
+			self.particles[i] = nil
+		end
+
+		p.vx = p.vx * 0.9
+		p.vy = p.vy * 0.9
+		p.vy = p.vy + GRAVITY
+		local vy = clamp(p.vy, -3, 3)
+
+		-- horizontal movement
+		p.x = p.x + p.vx
+		local box = { x = p.x - 1, y = p.y - 1, w = 2, h = 2 }
+		local cx = World:collision(box, "x")
+		if cx ~= 0 then
+			p.x = p.x + cx
+			p.vx = -p.vx
+		end
+
+		-- vertical movement
+		p.y = p.y + vy
+		local box = { x = p.x - 1, y = p.y - 1, w = 2, h = 2 }
+		local cy = World:collision(box, "y", vy)
+		if cy ~= 0 then
+			p.y = p.y + cy
+			p.vy = -p.vy
+		end
+
+	end
 end
 function ClientWorld:draw()
 	G.push()
@@ -338,13 +439,19 @@ function ClientWorld:draw()
 			end
 			G.circle("fill", p.x, p.y, 7)
 
-
 			G.setColor(255, 255, 255, 50)
 			G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
 			G.setColor(0, 255, 0, 200)
 			G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
 		end
 	end
+
+	-- particles
+	G.setColor(255, 255, 100)
+	for _, p in pairs(self.particles) do
+		G.circle("fill", p.x, p.y, math.min(1, p.ttl / 10), 6)
+	end
+
 
 	G.pop()
 

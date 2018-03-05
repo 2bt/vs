@@ -18,6 +18,7 @@ local G = love.graphics
 W = 320
 H = 180
 love.mouse.setVisible(false)
+G.setFont(G.newFont(10))
 
 
 World:init()
@@ -44,6 +45,9 @@ function love.update()
 	if state then
 		ClientWorld:decode_state(state)
 	end
+
+	-- update client world (particles)
+	ClientWorld:update()
 end
 function love.draw()
 	do
