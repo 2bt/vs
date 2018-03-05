@@ -27,6 +27,7 @@ function World:init()
 					type = "+",
 					x = x * TILE_SIZE + TILE_SIZE / 2,
 					y = y * TILE_SIZE + TILE_SIZE / 2,
+					tick = 0
 				})
 			end
 			x = x + 1
@@ -223,6 +224,14 @@ function World:update_player(p)
 		end
 	end
 
+	-- items
+	for _, i in ipairs(self.items) do
+		if i.tick > 0 and collision(box, { x = i.x - 4, y = i.y - 4, w = 8, h = 8 }) ~= 0 then
+			i.tick   = -1000
+			p.health = math.min(p.health + 50, 100)
+		end
+	end
+
 	-- lava
 	if World:collision(box, "death") == 1 then
 		World:hit_player(p, 100)
@@ -280,6 +289,11 @@ function World:update()
 		end
 	end
 
+	-- items
+	for _, i in ipairs(self.items) do
+		i.tick = i.tick + 1
+	end
+
 	-- remove events
 	while self.events[1] and self.tick - self.events[1].tick > 5 do
 		table.remove(self.events, 1)
@@ -306,7 +320,9 @@ function World:encode_state()
 
 	-- items
 	for _, i in pairs(self.items) do
-		state[#state + 1] = " " .. i.type .. " " .. i.x .. " " .. i.y
+		if i.tick > 0 then
+			state[#state + 1] = " " .. i.type .. " " .. i.x .. " " .. i.y
+		end
 	end
 	state[#state + 1] = " #"
 
@@ -403,16 +419,17 @@ end
 function ClientWorld:process_event(e)
 	if e[1] == "b" then
 		-- bullet particle
-		for i = 1, 7 do
+		for i = 1, 4 do
 			local a = math.random() * 2 * math.pi
-			local s = math.random() * 3
+			local s = math.random() * 4
 			table.insert(self.particles, {
 				type   = "b",
 				ttl    = math.random(15, 35),
 				x      = tonumber(e[2]),
 				y      = tonumber(e[3]),
 				vx     = math.sin(a) * s,
-				vy     = math.cos(a) * s,
+				vy     = math.cos(a) * s - 1,
+				ang    = a,
 				radius = 1,
 			})
 		end
@@ -427,7 +444,8 @@ function ClientWorld:process_event(e)
 				x      = tonumber(e[2]),
 				y      = tonumber(e[3]),
 				vx     = math.sin(a) * s,
-				vy     = math.cos(a) * s,
+				vy     = math.cos(a) * s - 2,
+				ang    = a,
 				radius = 4,
 			})
 		end
@@ -483,7 +501,11 @@ function ClientWorld:draw()
 		elseif p.type == "d" then
 			G.setColor(255, 0, 0)
 		end
-		G.circle("fill", p.x, p.y, math.min(p.radius, p.ttl / 10), 5)
+		G.push()
+		G.translate(p.x, p.y)
+		G.rotate(p.ang)
+		G.circle("fill", 0, 0, math.min(p.radius, p.ttl / 10), 5)
+		G.pop()
 	end
 
 
@@ -517,6 +539,7 @@ function ClientWorld:draw()
 		end
 	end
 
+	-- items
 	for _, i in ipairs(self.items) do
 		if i.type == "+" then
 			G.setColor(255, 255, 0)
@@ -546,7 +569,7 @@ function ClientWorld:draw()
 
 				G.setColor(255, 100, 100)
 			end
-			G.circle("fill", p.x, p.y, 7)
+			G.circle("fill", p.x, p.y, 8, 6)
 
 			-- weapon
 			G.setColor(200, 200, 200)
