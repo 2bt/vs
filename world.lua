@@ -121,10 +121,15 @@ function World:update_player(p)
 	p.vx = clamp(input.dx * 1.75, p.vx - acc, p.vx + acc)
 
 	-- jumping
+	local fall_though = false
 	if not p.in_air and input.jump and not p.old_jump then
-        p.vy           = -5
-        p.jump_control = true
-        p.in_air       = true
+		if input.dy > 0 then
+			fall_though = true
+		else
+			p.vy           = -5
+			p.jump_control = true
+			p.in_air       = true
+		end
 	end
     if p.in_air then
         if p.jump_control then
@@ -140,7 +145,7 @@ function World:update_player(p)
 
 	-- shooting
     if input.shoot and p.shoot_delay == 0 then
-        p.shoot_delay = 20
+        p.shoot_delay = 50
 		table.insert(self.bullets, {
 			player = p,
 			tick   = 0,
@@ -171,7 +176,7 @@ function World:update_player(p)
 	-- vertical movement
 	p.y = p.y + vy
 	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-	local cy = self:collision(box, "y", vy)
+	local cy = self:collision(box, "y", not fall_though and vy)
 	if cy ~= 0 then
 		p.y = p.y + cy
 		p.vy = 0
@@ -223,7 +228,7 @@ function World:update()
 					self:event({ "b", b.x + cx + b.dir * 6, b.y, b.dir })
 
 
-					p.health = math.max(p.health - 10, 0)
+					p.health = math.max(p.health - 30, 0)
 					if p.health == 0 then
 						-- player just died
 						b.player.score = b.player.score + 1
