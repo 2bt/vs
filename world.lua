@@ -522,9 +522,14 @@ function ClientWorld:draw()
 	-- map
 	do
 		local lava_poly = { TILE_SIZE, TILE_SIZE, 0, TILE_SIZE }
-		for i = 0, TILE_SIZE, TILE_SIZE / 3 do
+		local lava_poly2 = { TILE_SIZE, TILE_SIZE, 0, TILE_SIZE }
+		for i = 0, TILE_SIZE, TILE_SIZE / 4 do
 			lava_poly[#lava_poly + 1] = i
 			lava_poly[#lava_poly + 1] = math.sin(i / TILE_SIZE * 2 * math.pi + self.tick * 0.1) * 2
+		end
+		for i = 0, TILE_SIZE, TILE_SIZE / 3 do
+			lava_poly2[#lava_poly2 + 1] = i
+			lava_poly2[#lava_poly2 + 1] = math.sin(i / TILE_SIZE * 2 * math.pi - self.tick * 0.07) * 2
 		end
 
 		local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
@@ -551,12 +556,17 @@ function ClientWorld:draw()
 						G.rectangle("fill", x * 16 + 13, y * 16 + 13, 2, 2)
 					end
 				elseif t == "^" then
+					G.setColor(50, 30, 0)
+					G.rectangle("fill", x * 16, y * 16, 16, 4)
 					G.setColor(130, 80, 50)
-					G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 15, 3)
+					G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 7, 3)
+					G.rectangle("line", x * 16 + 0.5 + 8, y * 16 + 0.5, 7, 3)
 				elseif t == "L" then
-					G.setColor(130, 0, 0)
 					G.push()
 					G.translate(x * 16, y * 16)
+					G.setColor(100, 0, 0)
+					G.polygon("fill", lava_poly2)
+					G.setColor(130, 0, 0)
 					G.polygon("fill", lava_poly)
 					G.pop()
 				end
