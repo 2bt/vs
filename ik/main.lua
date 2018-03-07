@@ -1,5 +1,6 @@
 require("helper")
 require("bone")
+require("gui")
 
 G = love.graphics
 
@@ -9,6 +10,11 @@ cam = {
 	y = 0,
 	zoom = 1,
 }
+
+
+edit_mode = "bone"
+polygon = {}
+selcted_vertices = {}
 
 
 function screen_to_world(x, y)
@@ -23,21 +29,55 @@ end
 
 
 function love.keypressed(k)
-	if k == "escape" then love.event.quit() end
+	if k == "escape" then
+		love.event.quit()
+		return
+	end
+
 
 	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
+
 
 	if k == "s" and ctrl then
 		save_bones("save")
 		print("bones saved")
-		return
-	end
-	if k == "l" and ctrl then
+
+	elseif k == "l" and ctrl and edit_mode == "bone" then
 		load_bones("save")
 		print("bones loaded")
-		return
-	end
 
+	elseif k == "tab" then
+		if edit_mode == "bone" then
+			edit_mode = "mesh"
+
+			-- transform poly into world space
+			local b = selected_bone
+			local si = math.sin(b.global_ang)
+			local co = math.cos(b.global_ang)
+			polygon = {}
+			for i = 1, #b.poly, 2 do
+				polygon[i    ] = b.global_x + b.poly[i] * co - b.poly[i + 1] * si
+				polygon[i + 1] = b.global_y + b.poly[i + 1] * co + b.poly[i] * si
+			end
+
+
+		elseif edit_mode == "mesh" then
+			edit_mode = "bone"
+
+			-- transform poly back into bone space
+			local b = selected_bone
+			local si = math.sin(b.global_ang)
+			local co = math.cos(b.global_ang)
+			for i = 1, #b.poly, 2 do
+				local dx = polygon[i    ] - b.global_x
+				local dy = polygon[i + 1] - b.global_y
+				b.poly[i    ] = dx * co + dy * si
+				b.poly[i + 1] = dy * co - dx * si
+			end
+			polygon = {}
+
+		end
+	end
 end
 
 
@@ -45,23 +85,26 @@ function love.mousepressed(x, y, button)
 
 	local mx, my = screen_to_world(x, y)
 
-	if button == 2 then
-		for _, b in ipairs(bones) do
-			local d = math.max(
-				math.abs(b.global_x - mx),
-				math.abs(b.global_y - my))
-			if d < 10 then
-				selected_bone = b
-				return
+	if edit_mode == "bone" then
+		if button == 2 then
+			for _, b in ipairs(bones) do
+				local d = math.max(
+					math.abs(b.global_x - mx),
+					math.abs(b.global_y - my))
+				if d < 10 then
+					selected_bone = b
+					return
+				end
 			end
+			return
 		end
-		selected_bone = nil
-		return
 	end
 end
 
 
 function love.mousemoved(x, y, dx, dy)
+	if gui:mousemoved(x, y, dx, dy) then return end
+
 	-- move camera
 	if love.mouse.isDown(3) then
 		cam.x = cam.x - dx * cam.zoom
@@ -70,89 +113,91 @@ function love.mousemoved(x, y, dx, dy)
 	end
 
 
-	if not selected_bone then return end
-
 	local mx, my = screen_to_world(x, y)
 	dx = dx * cam.zoom
 	dy = dy * cam.zoom
 
-	-- move
-	local function move(dx, dy)
-		local b = selected_bone
-		local si = math.sin(b.global_ang - b.ang)
-		local co = math.cos(b.global_ang - b.ang)
+	if edit_mode == "bone" then
+		-- move
+		local function move(dx, dy)
+			local b = selected_bone
+			local si = math.sin(b.global_ang - b.ang)
+			local co = math.cos(b.global_ang - b.ang)
 
-		b.x = b.x + dx * co + dy * si
-		b.y = b.y + dy * co - dx * si
+			b.x = b.x + dx * co + dy * si
+			b.y = b.y + dy * co - dx * si
 
-		update_bone(b)
-		return
-	end
-	if love.keyboard.isDown("g") then
-		move(dx, dy)
-	end
-
-	-- rotate
-	if love.keyboard.isDown("r") then
-		local b = selected_bone
-		local bx = mx - b.global_x
-		local by = my - b.global_y
-		local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
-		if a < -math.pi then a = a + 2 * math.pi end
-		if a > math.pi then a = a - 2 * math.pi end
-		b.ang = b.ang + a
-		update_bone(b)
-		return
-	end
-
-	-- ik
-	if love.mouse.isDown(1) then
-		if not selected_bone.parent then
+			update_bone(b)
+			return
+		end
+		if love.keyboard.isDown("g") then
 			move(dx, dy)
+		end
+
+		-- rotate
+		if love.keyboard.isDown("r") then
+			local b = selected_bone
+			local bx = mx - b.global_x
+			local by = my - b.global_y
+			local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
+			if a < -math.pi then a = a + 2 * math.pi end
+			if a > math.pi then a = a - 2 * math.pi end
+			b.ang = b.ang + a
+			update_bone(b)
 			return
 		end
 
-		local tx = selected_bone.global_x + dx
-		local ty = selected_bone.global_y + dy
+		-- ik
+		if love.mouse.isDown(1) then
+			if not selected_bone.parent then
+				move(dx, dy)
+				return
+			end
 
-		local function calc_error()
-			local dx = selected_bone.global_x - tx
-			local dy = selected_bone.global_y - ty
-			return (dx * dx + dy * dy) ^ 0.5
-		end
+			local tx = selected_bone.global_x + dx
+			local ty = selected_bone.global_y + dy
 
-		for _ = 1, 100 do
-			local delta = 0.005
+			local function calc_error()
+				local dx = selected_bone.global_x - tx
+				local dy = selected_bone.global_y - ty
+				return (dx * dx + dy * dy) ^ 0.5
+			end
 
-			local improve = false
-			local b = selected_bone.parent
-			while b do
-				local e = calc_error()
-				b.ang = b.ang + delta
-				update_bone(b)
-				if calc_error() > e then
-					b.ang = b.ang - delta * 2
+			for _ = 1, 100 do
+				local delta = 0.005
+
+				local improve = false
+				local b = selected_bone.parent
+				while b do
+					local e = calc_error()
+					b.ang = b.ang + delta
 					update_bone(b)
 					if calc_error() > e then
-						b.ang = b.ang + delta
+						b.ang = b.ang - delta * 2
 						update_bone(b)
+						if calc_error() > e then
+							b.ang = b.ang + delta
+							update_bone(b)
+						else
+							improve = true
+						end
 					else
 						improve = true
 					end
-				else
-					improve = true
+
+					-- give parents a smaller weight
+					delta = delta * 0.7
+
+					b = b.parent
 				end
-
-				-- give parents a smaller weight
-				delta = delta * 0.7
-
-				b = b.parent
+				if not improve then break end
 			end
-			if not improve then break end
+			return
 		end
-		return
-	end
+	elseif edit_mode == "mesh" then
 
+
+	end
 end
 
 
@@ -165,6 +210,8 @@ function love.update()
 --	update_bone(root)
 
 end
+
+
 
 
 function love.draw()
@@ -190,23 +237,31 @@ function love.draw()
 
 	for _, b in ipairs(bones) do
 
+		-- joint
+		if b == selected_bone then
+			G.setColor(255, 255, 0, 100)
+			G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+		end
+		G.setColor(255, 255, 255)
+		G.circle("line", b.global_x, b.global_y, 5 * cam.zoom)
+
 		-- mesh
 		G.push()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
-		G.setColor(100, 100, 255, 100)
-		G.polygon("fill", b.poly)
 		if b == selected_bone then
-			G.setColor(100, 100, 255)
-			G.polygon("line", b.poly)
+			G.setColor(100, 255, 100, 100)
+		else
+			G.setColor(100, 100, 255, 100)
 		end
+		G.polygon("fill", b.poly)
 		G.pop()
 
 		-- bone
 		if b.parent then
 			local dx = b.global_x - b.parent.global_x
 			local dy = b.global_y - b.parent.global_y
-			local l = (dx * dx + dy * dy) ^ 0.5 * 0.1
+			local l = (dx * dx + dy * dy) ^ 0.5 * 0.1 / cam.zoom
 			G.setColor(255, 255, 255, 50)
 			G.polygon("fill",
 				b.parent.global_x + dy / l,
@@ -216,23 +271,35 @@ function love.draw()
 				b.global_x,
 				b.global_y)
 		end
+	end
 
-		-- joint
-		if b == selected_bone then
-			G.setColor(255, 100, 100)
-			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
-		else
-			G.setColor(255, 255, 255)
-			G.circle("line", b.global_x, b.global_y, 5 * cam.zoom)
-		end
+
+	-- mesh
+	if #polygon >= 6 then
+		G.setColor(255, 255, 255)
+		G.polygon("line", polygon)
+		G.setPointSize(5)
+		G.points(polygon)
 	end
 
 
 	G.origin()
 	G.setColor(255, 255, 255)
-	if selected_bone then
-		local b = selected_bone
-		G.print(("pos: %g, %g"):format(b.x, b.y), 10, 10)
-		G.print(("ang: %g"):format(b.ang), 10, 30)
+	G.print(("edit mode: %s"):format(edit_mode), 10, 10)
+
+	local b = selected_bone
+	G.print(("pos: %g, %g"):format(b.x, b.y), 10, 30)
+	G.print(("ang: %g"):format(b.ang), 10, 50)
+
+
+	-- buttons and stuff
+	gui:begin()
+	if gui:button("load") then
+		load_bones("save")
+		print("bones loaded")
+	end
+	if gui:button("save") then
+		save_bones("save")
+		print("bones saved")
 	end
 end

@@ -38,8 +38,8 @@ end
 
 
 bones         = {}
-selected_bone = nil
 root          = new_bone(0, 0, 0)
+selected_bone = root
 
 --add_bone(root, new_bone(200, 0, 0))
 --add_bone(root.kids[1], new_bone(-30, 100, 0))
@@ -56,7 +56,6 @@ function load_bones(name)
 	local data = loadstring("return " .. str)()
 	bones = {}
 	root = nil
-	selected_bone = nil
 	for _, d in ipairs(data) do
 		local b = new_bone(d.x, d.y, d.ang)
 	end
@@ -65,6 +64,7 @@ function load_bones(name)
 			add_bone(bones[data[i].p], b)
 		else
 			root = b
+			selected_bone = b
 		end
 	end
 	update_bone(root)
