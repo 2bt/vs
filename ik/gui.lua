@@ -29,7 +29,8 @@ function gui:begin()
 	for _, w in ipairs(self.windows) do
 		if w.min_x ~= w.max_x and w.min_y ~= w.max_y then
 			G.setColor(50, 50, 50, 200)
-			G.rectangle("fill", w.min_x, w.min_y, w.max_x - w.min_x + PADDING, w.max_y - w.min_y + PADDING)
+			G.rectangle("fill", w.min_x, w.min_y, w.max_x - w.min_x + PADDING, w.max_y - w.min_y + PADDING,
+					PADDING)
 		end
 	end
 
@@ -84,22 +85,24 @@ function gui:radio_button(text, v, t)
 	end
 
 	if text == self.active_item then
-		G.setColor(255, 100, 100, 100)
+		G.setColor(255, 100, 100, 200)
 	elseif hover then
-		G.setColor(150, 100, 100, 100)
+		G.setColor(150, 100, 100, 200)
 	else
-		G.setColor(100, 100, 100, 100)
+		G.setColor(100, 100, 100, 200)
 	end
-	G.rectangle("fill", box.x, box.y, box.h, box.h)
+	G.rectangle("fill", box.x, box.y, box.h, box.h, PADDING)
 
 	if t[1] == v then
-		G.setColor(255, 255, 255, 100)
+		G.setColor(255, 255, 255, 200)
 		G.rectangle("fill", box.x + 5, box.y + 5, box.h - 10, box.h - 10)
 	end
 
 
 	G.setColor(255, 255, 255)
 	G.print(text, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
+
+	return hover and self.clicked
 end
 function gui:button(text)
 	local box = self:get_new_item_box(100, 20)
@@ -113,17 +116,15 @@ function gui:button(text)
 	end
 
 	if text == self.active_item then
-		G.setColor(255, 100, 100, 100)
+		G.setColor(255, 100, 100, 200)
 	elseif hover then
-		G.setColor(150, 100, 100, 100)
+		G.setColor(150, 100, 100, 200)
 	else
-		G.setColor(100, 100, 100, 100)
+		G.setColor(100, 100, 100, 200)
 	end
-	G.rectangle("fill", box.x, box.y, box.w, box.h)
-
+	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
 	G.setColor(255, 255, 255)
---	G.rectangle("line", box.x, box.y, box.w, box.h)
 	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.clicked
