@@ -6,12 +6,35 @@ gui = {
 	windows = { {}, {} },
 }
 function gui:mousemoved(x, y, dx, dy)
-
+	for _, win in ipairs(self.windows) do
+		local box = {
+			x = win.min_x,
+			y = win.min_y,
+			w = win.max_x - win.min_x + PADDING,
+			h = win.max_y - win.min_y + PADDING,
+		}
+		if self:mouse_in_box(box) then return true end
+	end
 	return self.active_item ~= nil
 end
 function gui:select_win(nr)
 	self.current_window = self.windows[nr]
 end
+function gui:get_new_item_box(w, h)
+	local win = self.current_window
+	local ix = win.min_x + PADDING
+	local iy = win.max_y + PADDING
+	win.max_y = win.max_y + h + PADDING
+	win.max_x = math.max(win.max_x, win.min_x + w + PADDING)
+	return { x = ix, y = iy, w = w, h = h }
+end
+function gui:mouse_in_box(box)
+	return self.mx >= box.x and self.mx <= box.x + box.w
+		and self.my >= box.y and self.my <= box.y + box.h
+end
+
+
+-- public functions
 function gui:begin()
 
 	-- input
@@ -51,40 +74,34 @@ function gui:begin()
 
 	self.current_window = self.windows[1]
 end
-function gui:get_new_item_box(w, h)
+function gui:separator()
 	local win = self.current_window
-	local ix = win.min_x + PADDING
-	local iy = win.max_y + PADDING
-	win.max_y = win.max_y + h + PADDING
-	win.max_x = math.max(win.max_x, win.min_x + w + PADDING)
-	return { x = ix, y = iy, w = w, h = h }
-end
-function gui:mouse_in_box(box)
-	return self.mx >= box.x and self.mx <= box.x + box.w
-		and self.my >= box.y and self.my <= box.y + box.h
+	local box = self:get_new_item_box(win.max_x - win.min_x - PADDING, 4)
+	G.setColor(100, 100, 100, 100)
+	G.rectangle("fill", box.x - PADDING, box.y, box.w + PADDING * 2, box.h)
 end
 function gui:text(fmt, ...)
 	local str = fmt:format(...)
 	local w = G.getFont():getWidth(str)
-	local box = self:get_new_item_box(w, 20)
+	local box = self:get_new_item_box(w, 14)
 
 	G.setColor(255, 255, 255)
 	G.print(str, box.x, box.y + box.h / 2 - 7)
 end
-function gui:radio_button(text, v, t)
-	local w = G.getFont():getWidth(text)
+function gui:radio_button(label, v, t)
+	local w = G.getFont():getWidth(label)
 	local box = self:get_new_item_box(20 + PADDING + w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = text
+		self.hover_item = label
 		if self.clicked then
-			self.active_item = text
+			self.active_item = label
 			t[1] = v
 		end
 	end
 
-	if text == self.active_item then
+	if label == self.active_item then
 		G.setColor(255, 100, 100, 200)
 	elseif hover then
 		G.setColor(150, 100, 100, 200)
@@ -100,22 +117,22 @@ function gui:radio_button(text, v, t)
 
 
 	G.setColor(255, 255, 255)
-	G.print(text, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
+	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
 
 	return hover and self.clicked
 end
-function gui:button(text)
+function gui:button(label)
 	local box = self:get_new_item_box(100, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = text
+		self.hover_item = label
 		if self.clicked then
-			self.active_item = text
+			self.active_item = label
 		end
 	end
 
-	if text == self.active_item then
+	if label == self.active_item then
 		G.setColor(255, 100, 100, 200)
 	elseif hover then
 		G.setColor(150, 100, 100, 200)
@@ -125,7 +142,7 @@ function gui:button(text)
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
 	G.setColor(255, 255, 255)
-	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
+	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.clicked
 end

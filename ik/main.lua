@@ -213,17 +213,38 @@ end
 
 
 
+function do_gui()
+	G.origin()
+	gui:begin()
+
+	if gui:button("load") then
+		if edit_mode == "mesh" then switch_edit_mode() end
+		load_bones("save")
+	end
+	if gui:button("save") then save_bones("save") end
+	gui:separator()
+	do
+		local t = { edit_mode }
+		gui:radio_button("bone mode", "bone", t)
+		gui:radio_button("mesh mode", "mesh", t)
+		if edit_mode ~= t[1] then
+			switch_edit_mode()
+		end
+	end
+
+	gui:separator()
+	local b = selected_bone
+	gui:text("x: %g", b.x)
+	gui:text("y: %g", b.y)
+	gui:text("a: %.2f°", b.ang * 180 / math.pi)
+end
+
 
 function love.draw()
 	G.translate(G.getWidth() / 2, G.getHeight() / 2)
 	G.scale(1 / cam.zoom)
 	G.translate(-cam.x, -cam.y)
 	G.setLineWidth(cam.zoom)
-
---	-- mouse
---	local x, y = love.mouse.getPosition()
---	local mx, my = screen_to_world(x, y)
---	G.circle("fill", mx, my, 5 * cam.zoom)
 
 
 	-- axis
@@ -238,12 +259,15 @@ function love.draw()
 	for _, b in ipairs(bones) do
 
 		-- joint
-		if b == selected_bone then
-			G.setColor(255, 255, 0, 100)
-			G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+		if edit_mode == "bone" then
+			G.setColor(255, 255, 255)
+			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
+			if b == selected_bone then
+				G.setColor(255, 255, 0, 100)
+				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+			end
 		end
-		G.setColor(255, 255, 255)
-		G.circle("line", b.global_x, b.global_y, 5 * cam.zoom)
+
 
 		-- mesh
 		G.push()
@@ -282,32 +306,5 @@ function love.draw()
 		G.points(polygon)
 	end
 
-
-
-	-- gui
-	G.origin()
-	gui:begin()
-
-
-
-	if gui:button("load") then
-		if edit_mode == "mesh" then switch_edit_mode() end
-		load_bones("save")
-	end
-	if gui:button("save") then save_bones("save") end
-
-	do
-		local t = { edit_mode }
-		gui:radio_button("bone mode", "bone", t)
-		gui:radio_button("mesh mode", "mesh", t)
-		if edit_mode ~= t[1] then
-			switch_edit_mode()
-		end
-	end
-
-	local b = selected_bone
-	gui:text("x: %g", b.x)
-	gui:text("y: %g", b.y)
-	gui:text("a: %.2f°", b.ang * 180 / math.pi)
-
+	do_gui()
 end
