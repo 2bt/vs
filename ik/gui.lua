@@ -1,38 +1,108 @@
-
+PADDING = 5
 
 gui = {
 	hover_item  = nil,
 	active_item = nil,
-	button      = nil,
+	windows = { {}, {} },
 }
 function gui:mousemoved(x, y, dx, dy)
 
-	return self.active_item ~= nil or self.hover_item ~= nil
+	return self.active_item ~= nil
+end
+function gui:select_win(nr)
+	self.current_window = self.windows[nr]
 end
 function gui:begin()
+
+	-- input
 	self.mx, self.my = love.mouse.getPosition()
-	self.cx = G.getWidth() - 100 - 5
-	self.cy = 5
-	local b = self.pressed
+	local p = self.pressed
 	self.pressed = love.mouse.isDown(1)
-	self.clicked = self.pressed and not b
-	self.hover_item = nil
+	self.clicked = self.pressed and not p
 	if not self.pressed then
 		self.active_item = nil
 	end
+	self.hover_item = nil
+
+
+	-- draw windows
+	for _, w in ipairs(self.windows) do
+		if w.min_x ~= w.max_x and w.min_y ~= w.max_y then
+			G.setColor(50, 50, 50, 200)
+			G.rectangle("fill", w.min_x, w.min_y, w.max_x - w.min_x + PADDING, w.max_y - w.min_y + PADDING)
+		end
+	end
+
+	-- init windows
+	self.windows[1].min_x = 0
+	self.windows[1].max_x = 0
+	self.windows[1].min_y = 0
+	self.windows[1].max_y = 0
+
+	if self.windows[2].min_x then
+		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
+	else
+		self.windows[2].min_x = G.getWidth()
+	end
+	self.windows[2].max_x = G.getWidth() - PADDING
+	self.windows[2].min_y = 0
+	self.windows[2].max_y = 0
+
+	self.current_window = self.windows[1]
+end
+function gui:get_new_item_box(w, h)
+	local win = self.current_window
+	local ix = win.min_x + PADDING
+	local iy = win.max_y + PADDING
+	win.max_y = win.max_y + h + PADDING
+	win.max_x = math.max(win.max_x, win.min_x + w + PADDING)
+	return { x = ix, y = iy, w = w, h = h }
 end
 function gui:mouse_in_box(box)
 	return self.mx >= box.x and self.mx <= box.x + box.w
 		and self.my >= box.y and self.my <= box.y + box.h
 end
+function gui:text(fmt, ...)
+	local str = fmt:format(...)
+	local w = G.getFont():getWidth(str)
+	local box = self:get_new_item_box(w, 20)
+
+	G.setColor(255, 255, 255)
+	G.print(str, box.x, box.y + box.h / 2 - 7)
+end
+function gui:radio_button(text, v, t)
+	local w = G.getFont():getWidth(text)
+	local box = self:get_new_item_box(20 + PADDING + w, 20)
+
+	local hover = self:mouse_in_box(box)
+	if hover then
+		self.hover_item = text
+		if self.clicked then
+			self.active_item = text
+			t[1] = v
+		end
+	end
+
+	if text == self.active_item then
+		G.setColor(255, 100, 100, 100)
+	elseif hover then
+		G.setColor(150, 100, 100, 100)
+	else
+		G.setColor(100, 100, 100, 100)
+	end
+	G.rectangle("fill", box.x, box.y, box.h, box.h)
+
+	if t[1] == v then
+		G.setColor(255, 255, 255, 100)
+		G.rectangle("fill", box.x + 5, box.y + 5, box.h - 10, box.h - 10)
+	end
+
+
+	G.setColor(255, 255, 255)
+	G.print(text, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
+end
 function gui:button(text)
-	local box = {
-		x = self.cx,
-		y = self.cy,
-		w = 100,
-		h = 30,
-	}
-	self.cy = self.cy + 35
+	local box = self:get_new_item_box(100, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
@@ -53,8 +123,8 @@ function gui:button(text)
 
 
 	G.setColor(255, 255, 255)
-	G.rectangle("line", box.x, box.y, box.w, box.h)
-	G.printf(text, box.x, box.y + 8, box.w, "center")
+--	G.rectangle("line", box.x, box.y, box.w, box.h)
+	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.clicked
 end

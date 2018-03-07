@@ -17,6 +17,38 @@ polygon = {}
 selcted_vertices = {}
 
 
+function switch_edit_mode()
+	edit_mode = edit_mode == "bone" and "mesh" or "bone"
+
+	if edit_mode == "mesh" then
+		-- transform poly into world space
+		local b = selected_bone
+		local si = math.sin(b.global_ang)
+		local co = math.cos(b.global_ang)
+		polygon = {}
+		for i = 1, #b.poly, 2 do
+			polygon[i    ] = b.global_x + b.poly[i] * co - b.poly[i + 1] * si
+			polygon[i + 1] = b.global_y + b.poly[i + 1] * co + b.poly[i] * si
+		end
+
+	elseif edit_mode == "bone" then
+
+		-- transform poly back into bone space
+		local b = selected_bone
+		local si = math.sin(b.global_ang)
+		local co = math.cos(b.global_ang)
+		for i = 1, #b.poly, 2 do
+			local dx = polygon[i    ] - b.global_x
+			local dy = polygon[i + 1] - b.global_y
+			b.poly[i    ] = dx * co + dy * si
+			b.poly[i + 1] = dy * co - dx * si
+		end
+		polygon = {}
+
+	end
+end
+
+
 function screen_to_world(x, y)
 	return	cam.x + (x - G.getWidth() / 2) * cam.zoom,
 			cam.y + (y - G.getHeight() / 2) * cam.zoom
@@ -40,43 +72,11 @@ function love.keypressed(k)
 
 	if k == "s" and ctrl then
 		save_bones("save")
-		print("bones saved")
-
-	elseif k == "l" and ctrl and edit_mode == "bone" then
+	elseif k == "l" and ctrl then
+		if edit_mode == "mesh" then switch_edit_mode() end
 		load_bones("save")
-		print("bones loaded")
-
 	elseif k == "tab" then
-		if edit_mode == "bone" then
-			edit_mode = "mesh"
-
-			-- transform poly into world space
-			local b = selected_bone
-			local si = math.sin(b.global_ang)
-			local co = math.cos(b.global_ang)
-			polygon = {}
-			for i = 1, #b.poly, 2 do
-				polygon[i    ] = b.global_x + b.poly[i] * co - b.poly[i + 1] * si
-				polygon[i + 1] = b.global_y + b.poly[i + 1] * co + b.poly[i] * si
-			end
-
-
-		elseif edit_mode == "mesh" then
-			edit_mode = "bone"
-
-			-- transform poly back into bone space
-			local b = selected_bone
-			local si = math.sin(b.global_ang)
-			local co = math.cos(b.global_ang)
-			for i = 1, #b.poly, 2 do
-				local dx = polygon[i    ] - b.global_x
-				local dy = polygon[i + 1] - b.global_y
-				b.poly[i    ] = dx * co + dy * si
-				b.poly[i + 1] = dy * co - dx * si
-			end
-			polygon = {}
-
-		end
+		switch_edit_mode()
 	end
 end
 
@@ -283,23 +283,31 @@ function love.draw()
 	end
 
 
+
+	-- gui
 	G.origin()
-	G.setColor(255, 255, 255)
-	G.print(("edit mode: %s"):format(edit_mode), 10, 10)
+	gui:begin()
+
+
+
+	if gui:button("load") then
+		if edit_mode == "mesh" then switch_edit_mode() end
+		load_bones("save")
+	end
+	if gui:button("save") then save_bones("save") end
+
+	do
+		local t = { edit_mode }
+		gui:radio_button("bone mode", "bone", t)
+		gui:radio_button("mesh mode", "mesh", t)
+		if edit_mode ~= t[1] then
+			switch_edit_mode()
+		end
+	end
 
 	local b = selected_bone
-	G.print(("pos: %g, %g"):format(b.x, b.y), 10, 30)
-	G.print(("ang: %g"):format(b.ang), 10, 50)
+	gui:text("x: %g", b.x)
+	gui:text("y: %g", b.y)
+	gui:text("a: %.2f°", b.ang * 180 / math.pi)
 
-
-	-- buttons and stuff
-	gui:begin()
-	if gui:button("load") then
-		load_bones("save")
-		print("bones loaded")
-	end
-	if gui:button("save") then
-		save_bones("save")
-		print("bones saved")
-	end
 end

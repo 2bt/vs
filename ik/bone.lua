@@ -4,7 +4,7 @@ function new_bone(x, y, ang)
 		x    = x,
 		y    = y,
 		ang  = ang,
-		poly = { 0, 0, 100, 0, 100, 50, 0, 50 }
+		poly = { -25, -25, 100, -25, 100, 25, -25, 25 }
 	}
 	table.insert(bones, b)
 	return b
@@ -68,6 +68,7 @@ function load_bones(name)
 		end
 	end
 	update_bone(root)
+	print("bones loaded")
 end
 
 
@@ -89,4 +90,5 @@ function save_bones(name)
 	local file = io.open(name, "w")
 	file:write(table.tostring(data) .. "\n")
 	file:close()
+	print("bones saved")
 end
