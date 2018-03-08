@@ -355,11 +355,19 @@ function love.draw()
 	G.setLineWidth(cam.zoom)
 
 
-	-- axis
 	do
-		G.setColor(50, 50, 50)
+		-- axis
+		G.setColor(255, 255, 255, 50)
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
+
+		-- grid
+		for x = -1000, 1000, 100 do
+			G.line(x, -1000, x, 1000)
+		end
+		for y = -1000, 1000, 100 do
+			G.line(-1000, y, 1000, y)
+		end
 	end
 
 
