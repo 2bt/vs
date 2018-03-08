@@ -10,9 +10,8 @@ cam = {
 	y = 0,
 	zoom = 1,
 }
-
-
 edit = {
+	ik_length = 2,
 	mode = "bone",
 	poly = {},
 	selected_vertices = {},
@@ -116,8 +115,21 @@ function love.mousepressed(x, y, button)
 			end
 		end)
 
+	elseif edit.mode == "bone" and button == 1 and love.keyboard.isDown("c") then
+		-- add new bone
+		local b = selected_bone
+		local si = math.sin(b.global_ang)
+		local co = math.cos(b.global_ang)
+		local dx = edit.mx - b.global_x
+		local dy = edit.my - b.global_y
+		local k = new_bone(dx * co + dy * si, dy * co - dx * si, 0)
+		add_bone(b, k)
+		selected_bone = k
+		update_bone(k)
+
+
 	elseif edit.mode == "mesh" and button == 1 and love.keyboard.isDown("c") then
-		-- add new vertice
+		-- add new vertex
 		local index = 1
 		local min_l = nil
 		for i = 1, #edit.poly, 2 do
@@ -254,12 +266,15 @@ function love.mousemoved(x, y, dx, dy)
 				return (dx * dx + dy * dy) ^ 0.5
 			end
 
-			for _ = 1, 100 do
-				local delta = 0.005
+			for _ = 1, 200 do
+				local delta = 0.0005
 
 				local improve = false
-				local b = selected_bone.parent
-				while b do
+				local b = selected_bone
+				for _ = 1, edit.ik_length do
+					b = b.parent
+					if not b then break end
+
 					local e = calc_error()
 					b.ang = b.ang + delta
 					update_bone(b)
@@ -277,9 +292,7 @@ function love.mousemoved(x, y, dx, dy)
 					end
 
 					-- give parents a smaller weight
-					delta = delta * 0.7
-
-					b = b.parent
+					delta = delta * 1.0
 				end
 				if not improve then break end
 			end

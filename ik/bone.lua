@@ -22,7 +22,6 @@ function update_bone(b)
 		global_y = 0,
 		global_ang = 0,
 	}
-
 	local si = math.sin(p.global_ang)
 	local co = math.cos(p.global_ang)
 
