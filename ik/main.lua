@@ -99,16 +99,42 @@ function love.mousepressed(x, y, button)
 				math.abs(b.global_y - edit.my))
 			if d < 10 then
 				selected_bone = b
-				return
+				break
 			end
 		end
-		return
-	end
 
-	if edit.mode == "mesh" and button == 2 then
+	elseif edit.mode == "mesh" and button == 1 and love.keyboard.isDown("c") then
+		-- add new vertice
+		local index = 1
+		local min_l = nil
+		for i = 1, #edit.poly, 2 do
+
+			local dx1 = edit.mx - edit.poly[i]
+			local dy1 = edit.my - edit.poly[i + 1]
+			local dx2 = edit.mx - edit.poly[(i + 2) % #edit.poly]
+			local dy2 = edit.my - edit.poly[(i + 2) % #edit.poly + 1]
+
+			local l = dx1 * dx1 + dy1 * dy1
+			dx1 = dx1 / l
+			dy1 = dy1 / l
+			local l = dx2 * dx2 + dy2 * dy2
+			dx2 = dx2 / l
+			dy2 = dy2 / l
+
+			local l = dx1 * dy2 - dx2 * dy1
+			if not min_l or l < min_l then
+				min_l = l
+				index = i + 2
+			end
+		end
+
+		table.insert(edit.poly, index, edit.mx)
+		table.insert(edit.poly, index + 1, edit.my)
+		edit.selected_vertices = { index }
+
+	elseif edit.mode == "mesh" and button == 2 then
 		edit.sx = edit.mx
 		edit.sy = edit.my
-		return
 	end
 end
 function love.mousereleased(x, y, button)
@@ -288,7 +314,7 @@ function do_gui()
 		gui:radio_button("bone mode", "bone", t)
 		gui:radio_button("mesh mode", "mesh", t)
 		if edit.mode ~= t[1] then
-			switch_edit.mode()
+			edit:toggle_mode()
 		end
 	end
 
@@ -322,11 +348,11 @@ function love.draw()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
 		if b == selected_bone then
-			if edit.mode ~= "mesh" then
+			if edit.mode ~= "mesh" and #b.poly >= 3 then
 				G.setColor(80, 150, 80, 150)
 				G.polygon("fill", b.poly)
 			end
-		else
+		elseif #b.poly >= 3 then
 			G.setColor(80, 80, 150, 150)
 			G.polygon("fill", b.poly)
 		end
