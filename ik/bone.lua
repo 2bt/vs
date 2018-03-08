@@ -1,10 +1,10 @@
-function new_bone(x, y, ang)
+function new_bone(x, y, ang, poly)
 	local b = {
 		kids = {},
 		x    = x,
 		y    = y,
 		ang  = ang,
-		poly = { -25, -25, 100, -25, 100, 25, -25, 25 }
+		poly = poly or { -25, -25, 100, -25, 100, 25, -25, 25 }
 	}
 	table.insert(bones, b)
 	return b
@@ -57,11 +57,11 @@ function load_bones(name)
 	bones = {}
 	root = nil
 	for _, d in ipairs(data) do
-		local b = new_bone(d.x, d.y, d.ang)
+		local b = new_bone(d.x, d.y, d.ang, d.poly)
 	end
 	for i, b in ipairs(bones) do
-		if data[i].p then
-			add_bone(bones[data[i].p], b)
+		if data[i].parent then
+			add_bone(bones[data[i].parent], b)
 		else
 			root = b
 			selected_bone = b
@@ -79,10 +79,11 @@ function save_bones(name)
 			x = b.x,
 			y = b.y,
 			ang = b.ang,
+			poly = b.poly,
 		}
 		for j, p in ipairs(bones) do
 			if p == b.parent then
-				data[i].p = j
+				data[i].parent = j
 				break
 			end
 		end

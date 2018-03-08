@@ -12,46 +12,44 @@ cam = {
 }
 
 
-edit_mode = "bone"
-polygon = {}
-selcted_vertices = {}
+edit = {
+	mode = "bone",
+	poly = {},
+	selcted_vertices = {},
+}
+function edit:toggle_mode()
+	self.mode = self.mode == "bone" and "mesh" or "bone"
 
-
-function switch_edit_mode()
-	edit_mode = edit_mode == "bone" and "mesh" or "bone"
-
-	if edit_mode == "mesh" then
+	if self.mode == "mesh" then
 		-- transform poly into world space
 		local b = selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
-		polygon = {}
+		self.poly = {}
 		for i = 1, #b.poly, 2 do
-			polygon[i    ] = b.global_x + b.poly[i] * co - b.poly[i + 1] * si
-			polygon[i + 1] = b.global_y + b.poly[i + 1] * co + b.poly[i] * si
+			self.poly[i    ] = b.global_x + b.poly[i] * co - b.poly[i + 1] * si
+			self.poly[i + 1] = b.global_y + b.poly[i + 1] * co + b.poly[i] * si
 		end
 
-	elseif edit_mode == "bone" then
+	elseif self.mode == "bone" then
 
 		-- transform poly back into bone space
 		local b = selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
 		for i = 1, #b.poly, 2 do
-			local dx = polygon[i    ] - b.global_x
-			local dy = polygon[i + 1] - b.global_y
+			local dx = self.poly[i    ] - b.global_x
+			local dy = self.poly[i + 1] - b.global_y
 			b.poly[i    ] = dx * co + dy * si
 			b.poly[i + 1] = dy * co - dx * si
 		end
-		polygon = {}
-
+		self.poly = {}
+		self.selcted_vertices = {}
 	end
 end
-
-
-function screen_to_world(x, y)
-	return	cam.x + (x - G.getWidth() / 2) * cam.zoom,
-			cam.y + (y - G.getHeight() / 2) * cam.zoom
+function edit:update_mouse_pos(x, y)
+	self.mx = cam.x + (x - G.getWidth() / 2) * cam.zoom
+	self.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
 end
 
 
@@ -66,38 +64,75 @@ function love.keypressed(k)
 		return
 	end
 
-
 	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
 
-
 	if k == "s" and ctrl then
+		if edit.mode == "mesh" then edit:toggle_mode() end
 		save_bones("save")
 	elseif k == "l" and ctrl then
-		if edit_mode == "mesh" then switch_edit_mode() end
+		if edit.mode == "mesh" then edit:toggle_mode() end
 		load_bones("save")
 	elseif k == "tab" then
-		switch_edit_mode()
+		edit:toggle_mode()
 	end
 end
 
 
 function love.mousepressed(x, y, button)
+	if edit.mode == "bone" and button == 2 then
+		for _, b in ipairs(bones) do
+			local d = math.max(
+				math.abs(b.global_x - edit.mx),
+				math.abs(b.global_y - edit.my))
+			if d < 10 then
+				selected_bone = b
+				return
+			end
+		end
+		return
+	end
 
-	local mx, my = screen_to_world(x, y)
+	if edit.mode == "mesh" and button == 2 then
+		edit.sx = edit.mx
+		edit.sy = edit.my
+		return
+	end
+end
+function love.mousereleased(x, y, button)
+	if edit.mode == "mesh" and button == 2 then
 
-	if edit_mode == "bone" then
-		if button == 2 then
-			for _, b in ipairs(bones) do
+		-- select vertices
+
+		edit.selcted_vertices = {}
+		if edit.mx == edit.sx and edit.my == edit.sy then
+			for i = 1, #edit.poly, 2 do
 				local d = math.max(
-					math.abs(b.global_x - mx),
-					math.abs(b.global_y - my))
+					math.abs(edit.poly[i    ] - edit.mx),
+					math.abs(edit.poly[i + 1] - edit.my))
 				if d < 10 then
-					selected_bone = b
-					return
+					edit.selcted_vertices[1] = i
+					break
 				end
 			end
-			return
+		else
+			min_x = math.min(edit.mx, edit.sx)
+			min_y = math.min(edit.my, edit.sy)
+			max_x = math.max(edit.mx, edit.sx)
+			max_y = math.max(edit.my, edit.sy)
+
+			for i = 1, #edit.poly, 2 do
+				local x = edit.poly[i]
+				local y = edit.poly[i + 1]
+				local s = x >= min_x and x <= max_x and y >= min_y and y <= max_y
+				if s then
+					table.insert(edit.selcted_vertices, i)
+				end
+			end
 		end
+
+		edit.sx = nil
+		edit.sy = nil
+		return
 	end
 end
 
@@ -105,19 +140,19 @@ end
 function love.mousemoved(x, y, dx, dy)
 	if gui:mousemoved(x, y, dx, dy) then return end
 
+	edit:update_mouse_pos(x, y)
+	dx = dx * cam.zoom
+	dy = dy * cam.zoom
+
 	-- move camera
 	if love.mouse.isDown(3) then
-		cam.x = cam.x - dx * cam.zoom
-		cam.y = cam.y - dy * cam.zoom
+		cam.x = cam.x - dx
+		cam.y = cam.y - dy
 		return
 	end
 
 
-	local mx, my = screen_to_world(x, y)
-	dx = dx * cam.zoom
-	dy = dy * cam.zoom
-
-	if edit_mode == "bone" then
+	if edit.mode == "bone" then
 		-- move
 		local function move(dx, dy)
 			local b = selected_bone
@@ -137,8 +172,8 @@ function love.mousemoved(x, y, dx, dy)
 		-- rotate
 		if love.keyboard.isDown("r") then
 			local b = selected_bone
-			local bx = mx - b.global_x
-			local by = my - b.global_y
+			local bx = edit.mx - b.global_x
+			local by = edit.my - b.global_y
 			local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
 			if a < -math.pi then a = a + 2 * math.pi end
 			if a > math.pi then a = a - 2 * math.pi end
@@ -194,8 +229,15 @@ function love.mousemoved(x, y, dx, dy)
 			end
 			return
 		end
-	elseif edit_mode == "mesh" then
+	elseif edit.mode == "mesh" then
 
+		-- move
+		if love.mouse.isDown(1) then
+			for _, i in ipairs(edit.selcted_vertices) do
+				edit.poly[i    ] = edit.poly[i    ]  + dx
+				edit.poly[i + 1] = edit.poly[i + 1]  + dy
+			end
+		end
 
 	end
 end
@@ -218,17 +260,20 @@ function do_gui()
 	gui:begin()
 
 	if gui:button("load") then
-		if edit_mode == "mesh" then switch_edit_mode() end
+		if edit.mode == "mesh" then edit:toggle_mode() end
 		load_bones("save")
 	end
-	if gui:button("save") then save_bones("save") end
+	if gui:button("save") then
+		if edit.mode == "mesh" then edit:toggle_mode() end
+		save_bones("save")
+	end
 	gui:separator()
 	do
-		local t = { edit_mode }
+		local t = { edit.mode }
 		gui:radio_button("bone mode", "bone", t)
 		gui:radio_button("mesh mode", "mesh", t)
-		if edit_mode ~= t[1] then
-			switch_edit_mode()
+		if edit.mode ~= t[1] then
+			switch_edit.mode()
 		end
 	end
 
@@ -252,33 +297,24 @@ function love.draw()
 		G.setColor(50, 50, 50)
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
-
 	end
 
 
 	for _, b in ipairs(bones) do
-
-		-- joint
-		if edit_mode == "bone" then
-			G.setColor(255, 255, 255)
-			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
-			if b == selected_bone then
-				G.setColor(255, 255, 0, 100)
-				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
-			end
-		end
-
 
 		-- mesh
 		G.push()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
 		if b == selected_bone then
-			G.setColor(100, 255, 100, 100)
+			if edit.mode ~= "mesh" then
+				G.setColor(80, 150, 80, 150)
+				G.polygon("fill", b.poly)
+			end
 		else
-			G.setColor(100, 100, 255, 100)
+			G.setColor(80, 80, 150, 150)
+			G.polygon("fill", b.poly)
 		end
-		G.polygon("fill", b.poly)
 		G.pop()
 
 		-- bone
@@ -295,15 +331,47 @@ function love.draw()
 				b.global_x,
 				b.global_y)
 		end
+
+		-- joint
+		if edit.mode == "bone" then
+			G.setColor(255, 255, 255)
+			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
+			if b == selected_bone then
+				G.setColor(255, 255, 0, 100)
+				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+			end
+		end
 	end
 
 
-	-- mesh
-	if #polygon >= 6 then
-		G.setColor(255, 255, 255)
-		G.polygon("line", polygon)
-		G.setPointSize(5)
-		G.points(polygon)
+	if edit.mode == "mesh" then
+
+		-- mesh
+		if #edit.poly >= 6 then
+
+			G.setColor(80, 150, 80, 150)
+			G.polygon("fill", edit.poly)
+
+			G.setColor(255, 255, 255, 150)
+			G.polygon("line", edit.poly)
+			G.setPointSize(5)
+			G.points(edit.poly)
+		end
+
+		local s = {}
+		for _, i in ipairs(edit.selcted_vertices) do
+			s[#s + 1] = edit.poly[i]
+			s[#s + 1] = edit.poly[i + 1]
+		end
+		G.setColor(255, 255, 0)
+		G.setPointSize(7)
+		G.points(s)
+
+		-- selection box
+		if edit.sx then
+			G.setColor(200, 200, 200)
+			G.rectangle("line", edit.sx, edit.sy, edit.mx - edit.sx, edit.my - edit.sy)
+		end
 	end
 
 	do_gui()
