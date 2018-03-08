@@ -15,7 +15,7 @@ cam = {
 edit = {
 	mode = "bone",
 	poly = {},
-	selcted_vertices = {},
+	selected_vertices = {},
 }
 function edit:toggle_mode()
 	self.mode = self.mode == "bone" and "mesh" or "bone"
@@ -44,7 +44,7 @@ function edit:toggle_mode()
 			b.poly[i + 1] = dy * co - dx * si
 		end
 		self.poly = {}
-		self.selcted_vertices = {}
+		self.selected_vertices = {}
 	end
 end
 function edit:update_mouse_pos(x, y)
@@ -103,14 +103,16 @@ function love.mousereleased(x, y, button)
 
 		-- select vertices
 
-		edit.selcted_vertices = {}
+		if not love.keyboard.isDown("lshift", "rshift") then
+			edit.selected_vertices = {}
+		end
 		if edit.mx == edit.sx and edit.my == edit.sy then
 			for i = 1, #edit.poly, 2 do
 				local d = math.max(
 					math.abs(edit.poly[i    ] - edit.mx),
 					math.abs(edit.poly[i + 1] - edit.my))
 				if d < 10 then
-					edit.selcted_vertices[1] = i
+					edit.selected_vertices[1] = i
 					break
 				end
 			end
@@ -125,7 +127,7 @@ function love.mousereleased(x, y, button)
 				local y = edit.poly[i + 1]
 				local s = x >= min_x and x <= max_x and y >= min_y and y <= max_y
 				if s then
-					table.insert(edit.selcted_vertices, i)
+					table.insert(edit.selected_vertices, i)
 				end
 			end
 		end
@@ -233,7 +235,7 @@ function love.mousemoved(x, y, dx, dy)
 
 		-- move
 		if love.mouse.isDown(1) then
-			for _, i in ipairs(edit.selcted_vertices) do
+			for _, i in ipairs(edit.selected_vertices) do
 				edit.poly[i    ] = edit.poly[i    ]  + dx
 				edit.poly[i + 1] = edit.poly[i + 1]  + dy
 			end
@@ -359,7 +361,7 @@ function love.draw()
 		end
 
 		local s = {}
-		for _, i in ipairs(edit.selcted_vertices) do
+		for _, i in ipairs(edit.selected_vertices) do
 			s[#s + 1] = edit.poly[i]
 			s[#s + 1] = edit.poly[i + 1]
 		end
