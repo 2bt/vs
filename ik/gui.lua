@@ -5,13 +5,25 @@ gui = {
 	active_item = nil,
 	windows = { {}, {}, {} },
 }
+for _, win in ipairs(gui.windows) do
+	win.columns = {
+		{
+			min_x = 0,
+			max_x = 0,
+			min_y = 0,
+			max_y = 0,
+		}
+	}
+end
+
 function gui:mousemoved(x, y, dx, dy)
 	for _, win in ipairs(self.windows) do
+		local c = win.columns[#win.columns]
 		local box = {
-			x = win.min_x,
-			y = win.min_y,
-			w = win.max_x - win.min_x + PADDING,
-			h = win.max_y - win.min_y + PADDING,
+			x = c.min_x,
+			y = c.min_y,
+			w = c.max_x - c.min_x + PADDING,
+			h = c.max_y - c.min_y + PADDING,
 		}
 		if self:mouse_in_box(box) then return true end
 	end
@@ -39,8 +51,10 @@ function gui:get_new_item_box(w, h)
 		win.max_cx = box.x + w
 		win.max_cy = box.y + h
 	end
-	win.max_x = math.max(win.max_x, win.max_cx)
-	win.max_y = math.max(win.max_y, win.max_cy)
+
+	local c = win.columns[#win.columns]
+	c.max_x = math.max(c.max_x, win.max_cx)
+	c.max_y = math.max(c.max_y, win.max_cy)
 	box.w = w
 	box.h = h
 	return box
@@ -69,47 +83,83 @@ function gui:begin()
 
 
 	-- draw windows
-	for _, w in ipairs(self.windows) do
-		if w.min_x ~= w.max_x and w.min_y ~= w.max_y then
+	for _, win in ipairs(self.windows) do
+		if win.columns then
+			local c = win.columns[1]
 			G.setColor(50, 50, 50, 200)
-			G.rectangle("fill", w.min_x, w.min_y, w.max_x - w.min_x + PADDING, w.max_y - w.min_y + PADDING,
+			G.rectangle("fill", c.min_x, c.min_y, c.max_x - c.min_x + PADDING, c.max_y - c.min_y + PADDING,
 					PADDING)
 		end
 	end
 
-	-- init windows
-	self.windows[1].min_x = 0
-	self.windows[1].max_x = 0
-	self.windows[1].min_y = 0
-	self.windows[1].max_y = 0
+--	self.windows[1].columns[1] = {
+--		{
+--			min_x = 0,
+--			max_x = 0,
+--			min_y = 0,
+--			max_y = 0,
+--		}
+--	}
 
-	if not self.windows[2].min_x then
-		self.windows[2].min_x = G.getWidth()
+--	if not self.windows[2].min_x then
+--		self.windows[2].min_x = G.getWidth()
+--	else
+--		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
+--	end
+--	self.windows[2].max_x = G.getWidth() - PADDING
+--	self.windows[2].min_y = 0
+--	self.windows[2].max_y = 0
+
+
+	local c = self.windows[3].columns[1]
+
+	if not c.min_y == 0 then
+		c.min_y = G.getHeight()
 	else
-		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
+		c.min_y = G.getHeight() - (c.max_y - c.min_y) - PADDING
 	end
-	self.windows[2].max_x = G.getWidth() - PADDING
-	self.windows[2].min_y = 0
-	self.windows[2].max_y = 0
+	c.max_y = c.min_y
+	c.min_x = 0
+	c.max_x = G.getWidth() - PADDING
 
-
-	if not self.windows[3].min_x then
-		self.windows[3].min_y = G.getHeight()
-	else
-		self.windows[3].min_y = G.getHeight() - (self.windows[3].max_y - self.windows[3].min_y) - PADDING
-	end
-	self.windows[3].max_y = self.windows[3].min_y
-	self.windows[3].min_x = 0
-	self.windows[3].max_x = G.getWidth() - PADDING
-
-	for _, w in ipairs(self.windows) do
-		w.min_cx = w.min_x
-		w.max_cx = w.min_x
-		w.min_cy = w.min_y
-		w.max_cy = w.min_y
+	for _, win in ipairs(self.windows) do
+		local c = win.columns[1]
+		win.min_cx = c.min_x
+		win.max_cx = c.min_x
+		win.min_cy = c.min_y
+		win.max_cy = c.min_y
 	end
 
 	self.current_window = self.windows[1]
+end
+function gui:begin_column()
+	local win = self.current_window
+	local c = {}
+	if win.same_line then
+		c.min_x = win.max_cx
+		c.min_y = win.min_cy
+	else
+		c.min_x = win.min_cx
+		c.min_y = win.max_cy
+	end
+	c.max_x = c.min_x
+	c.max_y = c.min_y
+	table.insert(win.columns, c)
+	win.min_cx = c.min_x
+	win.max_cx = c.min_x
+	win.min_cy = c.min_y
+	win.max_cy = c.min_y
+end
+function gui:end_column()
+	local win = self.current_window
+	local c = table.remove(win.columns)
+	win.min_cx = c.min_x
+	win.min_cy = c.min_y
+	win.max_cx = c.max_x
+	win.max_cy = c.max_y
+	local c = win.columns[#win.columns]
+	c.max_x = math.max(c.max_x, win.max_cx)
+	c.max_y = math.max(c.max_y, win.max_cy)
 end
 function gui:separator()
 	local win = self.current_window
@@ -119,7 +169,8 @@ function gui:separator()
 		G.rectangle("fill", box.x, box.y - PADDING, box.w, box.h + PADDING * 2)
 		win.same_line = true
 	else
-		local box = self:get_new_item_box(win.max_x - win.min_x - PADDING, 4)
+		local c = win.columns[#win.columns]
+		local box = self:get_new_item_box(c.max_x - c.min_x - PADDING, 4)
 		G.rectangle("fill", box.x - PADDING, box.y, box.w + PADDING * 2, box.h)
 	end
 end

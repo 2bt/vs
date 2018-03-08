@@ -330,7 +330,7 @@ function do_gui()
 		if edit.mode == "mesh" then edit:toggle_mode() end
 		save_bones("save")
 	end
-	gui:separator()
+
 	do
 		local t = { edit.mode }
 		gui:radio_button("bone mode", "bone", t)
@@ -340,7 +340,6 @@ function do_gui()
 		end
 	end
 
-	gui:separator()
 	local b = selected_bone
 	gui:text("x: %g", b.x)
 	gui:text("y: %g", b.y)
@@ -350,26 +349,43 @@ function do_gui()
 	-- ruler
 	do
 		gui:select_win(3)
-		gui:button("test 1")
-		gui:same_line()
-		gui:separator()
-		gui:button("test 2")
-		gui:same_line()
-		gui:button("test 3")
-		gui:same_line()
-		gui:separator()
-		gui:text("hi")
-		gui:separator()
-		do
-			local t = { edit.playing }
-			gui:radio_button("play", true, t)
-			gui:radio_button("stop", false, t)
-			edit.playing = t[1]
-		end
-		gui:same_line()
-		local box = gui:get_new_item_box(500, 70)
-		G.rectangle("fill", box.x, box.y, box.h, box.h)
 
+		gui:begin_column()
+		local t = { edit.playing }
+		gui:radio_button("stop", false, t)
+		gui:radio_button("play", true, t)
+		edit.playing = t[1]
+		gui:button("reset")
+		gui:end_column()
+		gui:same_line()
+		gui:begin_column()
+
+		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
+
+		local box = gui:get_new_item_box(w, 70)
+		G.setColor(100, 100, 100, 200)
+		G.rectangle("fill", box.x, box.y, box.w, box.h)
+
+		G.setScissor(box.x, box.y, box.w, box.h)
+		G.push()
+		G.translate(box.x, box.y)
+
+		G.setColor(255, 255, 255)
+		i = 0
+		for x = 5, box.w, 10 do
+			if i % 10 == 0 then
+				G.line(x, 60, x, 70)
+			else
+				G.line(x, 65, x, 70)
+			end
+
+			i = i + 1
+		end
+
+		G.pop()
+		G.setScissor()
+
+		gui:end_column()
 	end
 
 end
