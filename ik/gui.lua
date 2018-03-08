@@ -1,9 +1,9 @@
-PADDING = 5
+local PADDING = 5
 
 gui = {
 	hover_item  = nil,
 	active_item = nil,
-	windows = { {}, {} },
+	windows = { {}, {}, {} },
 }
 function gui:mousemoved(x, y, dx, dy)
 	for _, win in ipairs(self.windows) do
@@ -22,11 +22,28 @@ function gui:select_win(nr)
 end
 function gui:get_new_item_box(w, h)
 	local win = self.current_window
-	local ix = win.min_x + PADDING
-	local iy = win.max_y + PADDING
-	win.max_y = win.max_y + h + PADDING
-	win.max_x = math.max(win.max_x, win.min_x + w + PADDING)
-	return { x = ix, y = iy, w = w, h = h }
+	local box = {}
+	if win.same_line then
+		win.same_line = false
+		box.x = win.max_cx + PADDING
+		box.y = win.min_cy + PADDING
+		if win.max_cy - win.min_cy - PADDING > h then
+			box.y = box.y + (win.max_cy - win.min_cy - PADDING - h) / 2
+		end
+		win.max_cx = math.max(win.max_cx, box.x + w)
+		win.max_cy = math.max(win.max_cy, box.y + h)
+	else
+		box.x = win.min_cx + PADDING
+		box.y = win.max_cy + PADDING
+		win.min_cy = win.max_cy
+		win.max_cx = box.x + w
+		win.max_cy = box.y + h
+	end
+	win.max_x = math.max(win.max_x, win.max_cx)
+	win.max_y = math.max(win.max_y, win.max_cy)
+	box.w = w
+	box.h = h
+	return box
 end
 function gui:mouse_in_box(box)
 	return self.mx >= box.x and self.mx <= box.x + box.w
@@ -35,6 +52,9 @@ end
 
 
 -- public functions
+function gui:same_line()
+	self.current_window.same_line = true
+end
 function gui:begin()
 
 	-- input
@@ -63,22 +83,45 @@ function gui:begin()
 	self.windows[1].min_y = 0
 	self.windows[1].max_y = 0
 
-	if self.windows[2].min_x then
-		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
-	else
+	if not self.windows[2].min_x then
 		self.windows[2].min_x = G.getWidth()
+	else
+		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
 	end
 	self.windows[2].max_x = G.getWidth() - PADDING
 	self.windows[2].min_y = 0
 	self.windows[2].max_y = 0
 
+
+	if not self.windows[3].min_x then
+		self.windows[3].min_y = G.getHeight()
+	else
+		self.windows[3].min_y = G.getHeight() - (self.windows[3].max_y - self.windows[3].min_y) - PADDING
+	end
+	self.windows[3].max_y = self.windows[3].min_y
+	self.windows[3].min_x = 0
+	self.windows[3].max_x = G.getWidth() - PADDING
+
+	for _, w in ipairs(self.windows) do
+		w.min_cx = w.min_x
+		w.max_cx = w.min_x
+		w.min_cy = w.min_y
+		w.max_cy = w.min_y
+	end
+
 	self.current_window = self.windows[1]
 end
 function gui:separator()
 	local win = self.current_window
-	local box = self:get_new_item_box(win.max_x - win.min_x - PADDING, 4)
 	G.setColor(100, 100, 100, 100)
-	G.rectangle("fill", box.x - PADDING, box.y, box.w + PADDING * 2, box.h)
+	if win.same_line then
+		local box = self:get_new_item_box(4, win.max_cy - win.min_cy - PADDING)
+		G.rectangle("fill", box.x, box.y - PADDING, box.w, box.h + PADDING * 2)
+		win.same_line = true
+	else
+		local box = self:get_new_item_box(win.max_x - win.min_x - PADDING, 4)
+		G.rectangle("fill", box.x - PADDING, box.y, box.w + PADDING * 2, box.h)
+	end
 end
 function gui:text(fmt, ...)
 	local str = fmt:format(...)

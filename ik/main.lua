@@ -303,8 +303,8 @@ function love.mousemoved(x, y, dx, dy)
 		-- move
 		if love.mouse.isDown(1) then
 			for _, i in ipairs(edit.selected_vertices) do
-				edit.poly[i    ] = edit.poly[i    ]  + dx
-				edit.poly[i + 1] = edit.poly[i + 1]  + dy
+				edit.poly[i    ] = edit.poly[i    ] + dx
+				edit.poly[i + 1] = edit.poly[i + 1] + dy
 			end
 		end
 
@@ -345,6 +345,33 @@ function do_gui()
 	gui:text("x: %g", b.x)
 	gui:text("y: %g", b.y)
 	gui:text("a: %.2f°", b.ang * 180 / math.pi)
+
+
+	-- ruler
+	do
+		gui:select_win(3)
+		gui:button("test 1")
+		gui:same_line()
+		gui:separator()
+		gui:button("test 2")
+		gui:same_line()
+		gui:button("test 3")
+		gui:same_line()
+		gui:separator()
+		gui:text("hi")
+		gui:separator()
+		do
+			local t = { edit.playing }
+			gui:radio_button("play", true, t)
+			gui:radio_button("stop", false, t)
+			edit.playing = t[1]
+		end
+		gui:same_line()
+		local box = gui:get_new_item_box(500, 70)
+		G.rectangle("fill", box.x, box.y, box.h, box.h)
+
+	end
+
 end
 
 
@@ -405,7 +432,7 @@ function love.draw()
 
 		-- joint
 		if edit.mode == "bone" then
-			G.setColor(255, 255, 255)
+			G.setColor(255, 255, 255, 150)
 			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
 			if b == selected_bone then
 				G.setColor(255, 255, 0, 100)
