@@ -78,6 +78,19 @@ function love.keypressed(k)
 	elseif k == "tab" then
 		edit:toggle_mode()
 
+	elseif k == "x" and edit.mode == "bone" then
+		-- delete bone
+		if selected_bone.parent then
+			local p = selected_bone.parent
+			for i, k in ipairs(p.kids) do
+				if k == selected_bone then
+					table.remove(p.kids, i)
+					break
+				end
+			end
+			selected_bone = p
+		end
+
 	elseif k == "x" and edit.mode == "mesh" then
 		-- delete selected vertice
 		for j = #edit.selected_vertices, 1, -1 do
@@ -93,15 +106,15 @@ end
 
 function love.mousepressed(x, y, button)
 	if edit.mode == "bone" and button == 2 then
-		for _, b in ipairs(bones) do
+		for_all_bones(function(b)
 			local d = math.max(
 				math.abs(b.global_x - edit.mx),
 				math.abs(b.global_y - edit.my))
 			if d < 10 then
 				selected_bone = b
-				break
+				return true
 			end
-		end
+		end)
 
 	elseif edit.mode == "mesh" and button == 1 and love.keyboard.isDown("c") then
 		-- add new vertice
@@ -137,6 +150,8 @@ function love.mousepressed(x, y, button)
 		edit.sy = edit.my
 	end
 end
+
+
 function love.mousereleased(x, y, button)
 	if edit.mode == "mesh" and button == 2 then
 
@@ -287,13 +302,7 @@ end
 tick = 0
 function love.update()
 	tick = tick + 1
-
---	root.ang = math.sin(tick * 0.02)
---	root.kids[1].ang = math.sin(tick * 0.03)
---	update_bone(root)
-
 end
-
 
 
 function do_gui()
@@ -341,7 +350,7 @@ function love.draw()
 	end
 
 
-	for _, b in ipairs(bones) do
+	for_all_bones(function(b)
 
 		-- mesh
 		G.push()
@@ -382,7 +391,7 @@ function love.draw()
 				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 			end
 		end
-	end
+	end)
 
 
 	if edit.mode == "mesh" then
