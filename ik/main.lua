@@ -37,7 +37,8 @@ function edit:toggle_mode()
 		local b = selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
-		for i = 1, #b.poly, 2 do
+		b.poly = {}
+		for i = 1, #self.poly, 2 do
 			local dx = self.poly[i    ] - b.global_x
 			local dy = self.poly[i + 1] - b.global_y
 			b.poly[i    ] = dx * co + dy * si
@@ -69,11 +70,23 @@ function love.keypressed(k)
 	if k == "s" and ctrl then
 		if edit.mode == "mesh" then edit:toggle_mode() end
 		save_bones("save")
+
 	elseif k == "l" and ctrl then
 		if edit.mode == "mesh" then edit:toggle_mode() end
 		load_bones("save")
+
 	elseif k == "tab" then
 		edit:toggle_mode()
+
+	elseif k == "x" and edit.mode == "mesh" then
+		-- delete selected vertice
+		for j = #edit.selected_vertices, 1, -1 do
+			local i = edit.selected_vertices[j]
+			table.remove(edit.poly, i)
+			table.remove(edit.poly, i)
+		end
+		edit.selected_vertices = {}
+
 	end
 end
 
@@ -350,15 +363,14 @@ function love.draw()
 
 		-- mesh
 		if #edit.poly >= 6 then
-
 			G.setColor(80, 150, 80, 150)
 			G.polygon("fill", edit.poly)
-
 			G.setColor(255, 255, 255, 150)
 			G.polygon("line", edit.poly)
-			G.setPointSize(5)
-			G.points(edit.poly)
 		end
+		G.setColor(255, 255, 255, 150)
+		G.setPointSize(5)
+		G.points(edit.poly)
 
 		local s = {}
 		for _, i in ipairs(edit.selected_vertices) do
