@@ -1,14 +1,14 @@
 function new_bone(x, y, ang, poly)
 	local b = {
 		kids = {},
-		x    = x,
-		y    = y,
-		ang  = ang,
-		poly = poly or { -25, -25, 25, -25, 25, 25, -25, 25 }
+		x    = x or 0,
+		y    = y or 0,
+		ang  = ang or 0,
+		poly = poly or { -25, -25, 25, -25, 25, 25, -25, 25 },
+		keyframes = {},
 	}
 	return b
 end
-
 
 function add_bone(p, k)
 	table.insert(p.kids, k)
@@ -35,15 +35,11 @@ function update_bone(b)
 end
 
 
-local root_bone = new_bone(0, 0, 0)
+local root_bone = new_bone()
 selected_bone   = root_bone
-
-
 --add_bone(root_bone, new_bone(200, 0, 0))
 --add_bone(root_bone.kids[1], new_bone(-30, 100, 0))
 --add_bone(root_bone.kids[1].kids[1], new_bone(70, 0, 0))
-
-
 update_bone(root_bone)
 
 
@@ -55,6 +51,60 @@ function for_all_bones(func)
 		end
 	end
 	visit(root_bone, func)
+end
+
+
+function add_bone_keyframe(tick)
+	for_all_bones(function(b)
+		local kf
+		for i, k in ipairs(b.keyframes) do
+			if k[1] == tick then
+				kf = k
+				break
+			end
+			if k[1] > tick then
+				kf = { tick }
+				table.insert(b.keyframes, i, kf)
+				break
+			end
+		end
+		if not kf then
+			kf = { tick }
+			table.insert(b.keyframes, kf)
+		end
+		kf[2] = b.x
+		kf[3] = b.y
+		kf[4] = b.ang
+	end)
+end
+
+
+function set_bone_frame(tick)
+	for_all_bones(function(b)
+		local k1, k2
+		for i, k in ipairs(b.keyframes) do
+			if k[1] < tick then
+				k1 = k
+			end
+			if k[1] >= tick then
+				k2 = k
+				break
+			end
+		end
+		if k1 and k2 then
+			local l = (tick - k1[1]) / (k2[1] - k1[1])
+			local function lerp(i) return k1[i] * (1 - l) + k2[i] * l end
+			b.x   = lerp(2)
+			b.y   = lerp(3)
+			b.ang = lerp(4)
+		elseif k1 or k2 then
+			local k = k1 or k2
+			b.x   = k[2]
+			b.y   = k[3]
+			b.ang = k[4]
+		end
+	end)
+	update_bone(root_bone)
 end
 
 

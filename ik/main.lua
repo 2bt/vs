@@ -12,8 +12,9 @@ cam = {
 }
 edit = {
 	ik_length = 2,
-	mode = "bone",
-	poly = {},
+	frame     = 0,
+	mode      = "bone",
+	poly      = {},
 	selected_vertices = {},
 }
 function edit:toggle_mode()
@@ -77,6 +78,10 @@ function love.keypressed(k)
 	elseif k == "tab" then
 		edit:toggle_mode()
 
+	elseif k == "i" and edit.mode == "bone" then
+		-- add keyframe
+		add_bone_keyframe(edit.frame)
+
 	elseif k == "x" and edit.mode == "bone" then
 		-- delete bone
 		if selected_bone.parent then
@@ -122,7 +127,7 @@ function love.mousepressed(x, y, button)
 		local co = math.cos(b.global_ang)
 		local dx = edit.mx - b.global_x
 		local dy = edit.my - b.global_y
-		local k = new_bone(dx * co + dy * si, dy * co - dx * si, 0)
+		local k = new_bone(dx * co + dy * si, dy * co - dx * si)
 		add_bone(b, k)
 		selected_bone = k
 		update_bone(k)
@@ -225,12 +230,9 @@ function love.mousemoved(x, y, dx, dy)
 			local b = selected_bone
 			local si = math.sin(b.global_ang - b.ang)
 			local co = math.cos(b.global_ang - b.ang)
-
 			b.x = b.x + dx * co + dy * si
 			b.y = b.y + dy * co - dx * si
-
 			update_bone(b)
-			return
 		end
 
 
@@ -295,7 +297,9 @@ function love.mousemoved(x, y, dx, dy)
 				end
 				if not improve then break end
 			end
+
 		end
+
 	elseif edit.mode == "mesh" then
 
 		local function get_selection_center()
@@ -391,39 +395,56 @@ function do_gui()
 	gui:text("a: %.2f°", b.ang * 180 / math.pi)
 
 
-	-- ruler
+	-- timeline
 	do
 		gui:select_win(3)
 
 		gui:begin_column()
-		local t = { edit.playing }
-		gui:radio_button("stop", false, t)
-		gui:radio_button("play", true, t)
-		edit.playing = t[1]
-		gui:button("reset")
-		gui:end_column()
-		gui:same_line()
-		gui:begin_column()
 
 		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
+		local box = gui:get_new_item_box(w, 45)
 
-		local box = gui:get_new_item_box(w, 70)
-		G.setColor(100, 100, 100, 200)
-		G.rectangle("fill", box.x, box.y, box.w, box.h)
+		-- select frame
+		if gui:mouse_in_box(box) and gui.pressed then
+			edit.frame = math.floor((gui.mx - box.x - 5) / 10 + 0.5)
+			set_bone_frame(edit.frame)
+		end
 
 		G.setScissor(box.x, box.y, box.w, box.h)
 		G.push()
 		G.translate(box.x, box.y)
 
-		G.setColor(255, 255, 255)
+
+		local is_keyframe = {}
+		for_all_bones(function(b)
+			for _, k in ipairs(b.keyframes) do
+				is_keyframe[k[1]] = true
+			end
+		end)
+
+
+		-- draw
+		G.setColor(100, 100, 100, 200)
+		G.rectangle("fill", 0, 0, box.w, box.h)
+		G.setColor(0, 255, 0)
+		local x = 5 + edit.frame * 10
+		G.line(x, 0, x, 45)
+
+		-- lines
 		i = 0
 		for x = 5, box.w, 10 do
+			G.setColor(200, 200, 200)
 			if i % 10 == 0 then
-				G.line(x, 60, x, 70)
+				G.line(x, 35, x, 45)
+				G.printf(i, x - 50, 18, 100, "center")
 			else
-				G.line(x, 65, x, 70)
+				G.line(x, 40, x, 45)
 			end
 
+			if is_keyframe[i] then
+				G.setColor(255, 255, 255)
+				G.circle("fill", x, 10, 5, 4)
+			end
 			i = i + 1
 		end
 
