@@ -11,14 +11,17 @@ cam = {
 	zoom = 1,
 }
 edit = {
-	is_playing = false,
-	play_speed = 0.2,
-	frame      = 0,
+	is_playing        = false,
+	play_speed        = 0.2,
+	frame             = 0,
 
-	ik_length  = 2,
+	show_grid         = true,
+	show_bones        = true,
+	show_joints       = true,
 
-	mode       = "bone",
-	poly       = {},
+	mode              = "bone",
+	ik_length         = 2,
+	poly              = {},
 	selected_vertices = {},
 }
 function edit:set_frame(f)
@@ -106,6 +109,15 @@ function love.keypressed(k)
 		end
 		edit.selected_vertices = {}
 
+	elseif k == "a" and edit.mode == "mesh" then
+		-- toggle select
+		local v = {}
+		if #edit.selected_vertices > 0 then
+			for i = #edit.selected_vertices, 1, -1 do
+				v[#v + 1] = i
+			end
+		end
+		edit.selected_vertices = v
 	end
 end
 
@@ -384,13 +396,19 @@ function do_gui()
 	do
 		gui:select_win(1)
 		local t = { edit.mode }
-		gui:radio_button_2("bone", "bone", t)
+		gui:radio_button("bone", "bone", t)
 		gui:same_line()
-		gui:radio_button_2("mesh", "mesh", t)
+		gui:radio_button("mesh", "mesh", t)
 		if edit.mode ~= t[1]
 		or gui.was_key_pressed["tab"] then
 			edit:toggle_mode()
 		end
+		gui:separator()
+
+
+		gui:checkbox("grid", edit, "show_grid")
+		gui:checkbox("joints", edit, "show_joints")
+		gui:checkbox("bones", edit, "show_bones")
 		gui:separator()
 
 		local b = selected_bone
@@ -481,9 +499,9 @@ function do_gui()
 
 		-- play
 		local t = { edit.is_playing }
-		gui:radio_button_2("stop", false, t)
+		gui:radio_button("stop", false, t)
 		gui:same_line()
-		gui:radio_button_2("play", true, t)
+		gui:radio_button("play", true, t)
 		gui:same_line()
 		if edit.is_playing ~= t[1]
 		or gui.was_key_pressed["space"] then
@@ -537,12 +555,13 @@ function love.draw()
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
 
-		-- grid
-		for x = -1000, 1000, 100 do
-			G.line(x, -1000, x, 1000)
-		end
-		for y = -1000, 1000, 100 do
-			G.line(-1000, y, 1000, y)
+		if edit.show_grid then
+			for x = -1000, 1000, 100 do
+				G.line(x, -1000, x, 1000)
+			end
+			for y = -1000, 1000, 100 do
+				G.line(-1000, y, 1000, y)
+			end
 		end
 	end
 
@@ -565,7 +584,7 @@ function love.draw()
 		G.pop()
 
 		-- bone
-		if b.parent then
+		if edit.show_bones and b.parent then
 			local dx = b.global_x - b.parent.global_x
 			local dy = b.global_y - b.parent.global_y
 			local l = (dx * dx + dy * dy) ^ 0.5 * 0.1 / cam.zoom
@@ -580,7 +599,7 @@ function love.draw()
 		end
 
 		-- joint
-		if edit.mode == "bone" then
+		if edit.show_joints then
 			G.setColor(255, 255, 255, 150)
 			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
 			if b == selected_bone then

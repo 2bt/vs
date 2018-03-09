@@ -206,7 +206,7 @@ function gui:button(label)
 
 	return hover and self.was_mouse_cliked
 end
-function gui:radio_button(label, v, t)
+function gui:checkbox(label, t, n)
 	local w = G.getFont():getWidth(label)
 	local box = self:get_new_item_box(20 + PADDING + w, 20)
 
@@ -215,7 +215,7 @@ function gui:radio_button(label, v, t)
 		self.hover_item = label
 		if self.was_mouse_cliked then
 			self.active_item = label
-			t[1] = v
+			t[n] = not t[n]
 		end
 	end
 
@@ -228,7 +228,7 @@ function gui:radio_button(label, v, t)
 	end
 	G.rectangle("fill", box.x, box.y, box.h, box.h, PADDING)
 
-	if t[1] == v then
+	if t[n] then
 		G.setColor(255, 255, 255, 200)
 		G.rectangle("fill", box.x + 5, box.y + 5, box.h - 10, box.h - 10)
 	end
@@ -239,7 +239,7 @@ function gui:radio_button(label, v, t)
 
 	return hover and self.was_mouse_cliked
 end
-function gui:radio_button_2(label, v, t)
+function gui:radio_button(label, v, t)
 	local w = G.getFont():getWidth(label)
 	local box = self:get_new_item_box(w + 10, 20)
 
