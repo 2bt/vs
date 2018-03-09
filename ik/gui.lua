@@ -1,9 +1,10 @@
 local PADDING = 5
 
 gui = {
-	hover_item  = nil,
-	active_item = nil,
-	windows = { {}, {}, {} },
+	was_key_pressed = {},
+	hover_item      = nil,
+	active_item     = nil,
+	windows         = { {}, {}, {} },
 }
 for _, win in ipairs(gui.windows) do
 	win.columns = {
@@ -16,6 +17,9 @@ for _, win in ipairs(gui.windows) do
 	}
 end
 
+function gui:keypressed(k)
+	self.was_key_pressed[k] = true
+end
 function gui:mousemoved(x, y, dx, dy)
 	for _, win in ipairs(self.windows) do
 		local c = win.columns[#win.columns]
@@ -32,21 +36,22 @@ end
 function gui:select_win(nr)
 	self.current_window = self.windows[nr]
 end
-function gui:get_new_item_box(w, h)
+function gui:get_new_item_box(w, h, pad)
+	pad = pad or PADDING
 	local win = self.current_window
 	local box = {}
 	if win.same_line then
 		win.same_line = false
-		box.x = win.max_cx + PADDING
-		box.y = win.min_cy + PADDING
-		if win.max_cy - win.min_cy - PADDING > h then
-			box.y = box.y + (win.max_cy - win.min_cy - PADDING - h) / 2
+		box.x = win.max_cx + pad
+		box.y = win.min_cy + pad
+		if win.max_cy - win.min_cy - pad > h then
+			box.y = box.y + (win.max_cy - win.min_cy - pad - h) / 2
 		end
 		win.max_cx = math.max(win.max_cx, box.x + w)
 		win.max_cy = math.max(win.max_cy, box.y + h)
 	else
-		box.x = win.min_cx + PADDING
-		box.y = win.max_cy + PADDING
+		box.x = win.min_cx + pad
+		box.y = win.max_cy + pad
 		win.min_cy = win.max_cy
 		win.max_cx = box.x + w
 		win.max_cy = box.y + h
@@ -69,14 +74,14 @@ end
 function gui:same_line()
 	self.current_window.same_line = true
 end
-function gui:begin()
+function gui:begin_frame()
 
 	-- input
 	self.mx, self.my = love.mouse.getPosition()
-	local p = self.pressed
-	self.pressed = love.mouse.isDown(1)
-	self.clicked = self.pressed and not p
-	if not self.pressed then
+	local p = self.is_mouse_down
+	self.is_mouse_down = love.mouse.isDown(1)
+	self.was_mouse_cliked = self.is_mouse_down and not p
+	if not self.is_mouse_down then
 		self.active_item = nil
 	end
 	self.hover_item = nil
@@ -92,34 +97,25 @@ function gui:begin()
 		end
 	end
 
---	self.windows[1].columns[1] = {
---		{
---			min_x = 0,
---			max_x = 0,
---			min_y = 0,
---			max_y = 0,
---		}
---	}
 
---	if not self.windows[2].min_x then
---		self.windows[2].min_x = G.getWidth()
---	else
---		self.windows[2].min_x = G.getWidth() - (self.windows[2].max_x - self.windows[2].min_x) - PADDING
---	end
---	self.windows[2].max_x = G.getWidth() - PADDING
---	self.windows[2].min_y = 0
---	self.windows[2].max_y = 0
+	local c = self.windows[2].columns[1]
+	if c.min_x == 0 then
+		c.min_x = G.getWidth()
+	else
+		c.min_x = G.getWidth() - (c.max_x - c.min_x) - PADDING
+	end
+	c.max_x = G.getWidth() - PADDING
+	c.min_y = 0
+	c.max_y = 0
 
 
 	local c = self.windows[3].columns[1]
-
-	if not c.min_y == 0 then
+	if c.min_y == 0 then
 		c.min_y = G.getHeight()
 	else
 		c.min_y = G.getHeight() - (c.max_y - c.min_y) - PADDING
 	end
 	c.max_y = c.min_y
-	c.min_x = 0
 	c.max_x = G.getWidth() - PADDING
 
 	for _, win in ipairs(self.windows) do
@@ -131,6 +127,9 @@ function gui:begin()
 	end
 
 	self.current_window = self.windows[1]
+end
+function gui:end_frame()
+	self.was_key_pressed = {}
 end
 function gui:begin_column()
 	local win = self.current_window
@@ -178,9 +177,34 @@ function gui:text(fmt, ...)
 	local str = fmt:format(...)
 	local w = G.getFont():getWidth(str)
 	local box = self:get_new_item_box(w, 14)
-
 	G.setColor(255, 255, 255)
 	G.print(str, box.x, box.y + box.h / 2 - 7)
+end
+function gui:button(label)
+	local w = G.getFont():getWidth(label)
+	local box = self:get_new_item_box(w + 10, 20)
+
+	local hover = self:mouse_in_box(box)
+	if hover then
+		self.hover_item = label
+		if self.was_mouse_cliked then
+			self.active_item = label
+		end
+	end
+
+	if label == self.active_item then
+		G.setColor(255, 100, 100, 200)
+	elseif hover then
+		G.setColor(150, 100, 100, 200)
+	else
+		G.setColor(100, 100, 100, 200)
+	end
+	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
+
+	G.setColor(255, 255, 255)
+	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
+
+	return hover and self.was_mouse_cliked
 end
 function gui:radio_button(label, v, t)
 	local w = G.getFont():getWidth(label)
@@ -189,7 +213,7 @@ function gui:radio_button(label, v, t)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = label
-		if self.clicked then
+		if self.was_mouse_cliked then
 			self.active_item = label
 			t[1] = v
 		end
@@ -213,16 +237,18 @@ function gui:radio_button(label, v, t)
 	G.setColor(255, 255, 255)
 	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
 
-	return hover and self.clicked
+	return hover and self.was_mouse_cliked
 end
-function gui:button(label)
-	local box = self:get_new_item_box(100, 20)
+function gui:radio_button_2(label, v, t)
+	local w = G.getFont():getWidth(label)
+	local box = self:get_new_item_box(w + 10, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = label
-		if self.clicked then
+		if self.was_mouse_cliked then
 			self.active_item = label
+			t[1] = v
 		end
 	end
 
@@ -235,9 +261,14 @@ function gui:button(label)
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
+	if t[1] == v then
+		G.setColor(255, 255, 255, 200)
+		G.rectangle("line", box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, PADDING)
+	end
+
+
 	G.setColor(255, 255, 255)
 	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
-	return hover and self.clicked
+	return hover and self.was_mouse_cliked
 end
-

@@ -65,24 +65,9 @@ function love.keypressed(k)
 		return
 	end
 
-	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
+	gui:keypressed(k)
 
-	if k == "s" and ctrl then
-		if edit.mode == "mesh" then edit:toggle_mode() end
-		save_bones("save")
-
-	elseif k == "l" and ctrl then
-		if edit.mode == "mesh" then edit:toggle_mode() end
-		load_bones("save")
-
-	elseif k == "tab" then
-		edit:toggle_mode()
-
-	elseif k == "i" and edit.mode == "bone" then
-		-- add keyframe
-		add_bone_keyframe(edit.frame)
-
-	elseif k == "x" and edit.mode == "bone" then
+	if k == "x" and edit.mode == "bone" then
 		-- delete bone
 		if selected_bone.parent then
 			local p = selected_bone.parent
@@ -110,6 +95,7 @@ end
 
 function love.mousepressed(x, y, button)
 	if edit.mode == "bone" and button == 2 then
+		-- select bone
 		for_all_bones(function(b)
 			local d = math.max(
 				math.abs(b.global_x - edit.mx),
@@ -163,6 +149,7 @@ function love.mousepressed(x, y, button)
 		edit.selected_vertices = { index }
 
 	elseif edit.mode == "mesh" and button == 2 then
+		-- vertex selection rect
 		edit.sx = edit.mx
 		edit.sy = edit.my
 	end
@@ -369,43 +356,65 @@ end
 
 function do_gui()
 	G.origin()
-	gui:begin()
+	gui:begin_frame()
 
-	if gui:button("load") then
-		if edit.mode == "mesh" then edit:toggle_mode() end
-		load_bones("save")
-	end
-	if gui:button("save") then
-		if edit.mode == "mesh" then edit:toggle_mode() end
-		save_bones("save")
-	end
 
+	-- left win
 	do
+		gui:select_win(1)
 		local t = { edit.mode }
-		gui:radio_button("bone mode", "bone", t)
-		gui:radio_button("mesh mode", "mesh", t)
-		if edit.mode ~= t[1] then
+		gui:get_new_item_box(0, 25, 0)
+		gui:same_line()
+		gui:text("mode:")
+		gui:same_line()
+		gui:radio_button_2("bone", "bone", t)
+		gui:same_line()
+		gui:radio_button_2("mesh", "mesh", t)
+		if edit.mode ~= t[1]
+		or gui.was_key_pressed["tab"] then
 			edit:toggle_mode()
 		end
+		gui:separator()
+
+		local b = selected_bone
+		gui:text("x: %.2f", b.x)
+		gui:text("y: %.2f", b.y)
+		gui:text("a: %.2f°", b.ang * 180 / math.pi)
 	end
 
-	local b = selected_bone
-	gui:text("x: %g", b.x)
-	gui:text("y: %g", b.y)
-	gui:text("a: %.2f°", b.ang * 180 / math.pi)
+	-- right win
+	do
+		gui:select_win(2)
+		gui:get_new_item_box(0, 25, 0)
+		gui:same_line()
+		gui:text("model:")
+		gui:same_line()
 
+		local ctrl = love.keyboard.isDown("lctrl", "rctrl")
+
+		if gui:button("load")
+		or (gui.was_key_pressed["l"] and ctrl) then
+			if edit.mode == "mesh" then edit:toggle_mode() end
+			load_bones("save")
+		end
+		gui:same_line()
+		if gui:button("save")
+		or (gui.was_key_pressed["s"] and ctrl) then
+			if edit.mode == "mesh" then edit:toggle_mode() end
+			save_bones("save")
+		end
+	end
 
 	-- timeline
 	do
 		gui:select_win(3)
-
 		gui:begin_column()
 
 		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
 		local box = gui:get_new_item_box(w, 45)
 
 		-- select frame
-		if gui:mouse_in_box(box) and gui.pressed then
+		if gui:mouse_in_box(box) and gui.is_mouse_down then
 			edit.frame = math.floor((gui.mx - box.x - 5) / 10 + 0.5)
 			set_bone_frame(edit.frame)
 		end
@@ -414,14 +423,12 @@ function do_gui()
 		G.push()
 		G.translate(box.x, box.y)
 
-
 		local is_keyframe = {}
 		for_all_bones(function(b)
 			for _, k in ipairs(b.keyframes) do
 				is_keyframe[k[1]] = true
 			end
 		end)
-
 
 		-- draw
 		G.setColor(100, 100, 100, 200)
@@ -433,7 +440,7 @@ function do_gui()
 		-- lines
 		i = 0
 		for x = 5, box.w, 10 do
-			G.setColor(200, 200, 200)
+			G.setColor(255, 255, 255)
 			if i % 10 == 0 then
 				G.line(x, 35, x, 45)
 				G.printf(i, x - 50, 18, 100, "center")
@@ -442,7 +449,7 @@ function do_gui()
 			end
 
 			if is_keyframe[i] then
-				G.setColor(255, 255, 255)
+				G.setColor(255, 200, 100)
 				G.circle("fill", x, 10, 5, 4)
 			end
 			i = i + 1
@@ -450,10 +457,32 @@ function do_gui()
 
 		G.pop()
 		G.setScissor()
-
 		gui:end_column()
+
+		gui:get_new_item_box(0, 25, 0)
+		gui:same_line()
+		gui:text("keyframe:")
+		gui:same_line()
+		if gui:button("insert") or gui.was_key_pressed["i"] then
+			insert_bone_keyframe(edit.frame)
+		end
+		gui:same_line()
+		if gui:button("copy") then
+			copy_bone_keyframe(edit.frame)
+		end
+		gui:same_line()
+		if gui:button("paste") then
+			paste_bone_keyframe(edit.frame)
+		end
+		gui:same_line()
+		local alt = love.keyboard.isDown("lalt", "ralt")
+		if gui:button("delete")
+		or (gui.was_key_pressed["i"] and alt) then
+			delete_bone_keyframe(edit.frame)
+		end
 	end
 
+	gui:end_frame()
 end
 
 

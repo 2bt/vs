@@ -54,45 +54,20 @@ function for_all_bones(func)
 end
 
 
-function add_bone_keyframe(tick)
-	for_all_bones(function(b)
-		local kf
-		for i, k in ipairs(b.keyframes) do
-			if k[1] == tick then
-				kf = k
-				break
-			end
-			if k[1] > tick then
-				kf = { tick }
-				table.insert(b.keyframes, i, kf)
-				break
-			end
-		end
-		if not kf then
-			kf = { tick }
-			table.insert(b.keyframes, kf)
-		end
-		kf[2] = b.x
-		kf[3] = b.y
-		kf[4] = b.ang
-	end)
-end
-
-
-function set_bone_frame(tick)
+function set_bone_frame(frame)
 	for_all_bones(function(b)
 		local k1, k2
 		for i, k in ipairs(b.keyframes) do
-			if k[1] < tick then
+			if k[1] < frame then
 				k1 = k
 			end
-			if k[1] >= tick then
+			if k[1] >= frame then
 				k2 = k
 				break
 			end
 		end
 		if k1 and k2 then
-			local l = (tick - k1[1]) / (k2[1] - k1[1])
+			local l = (frame - k1[1]) / (k2[1] - k1[1])
 			local function lerp(i) return k1[i] * (1 - l) + k2[i] * l end
 			b.x   = lerp(2)
 			b.y   = lerp(3)
@@ -106,6 +81,84 @@ function set_bone_frame(tick)
 	end)
 	update_bone(root_bone)
 end
+
+
+function insert_bone_keyframe(frame)
+	for_all_bones(function(b)
+		local kf
+		for i, k in ipairs(b.keyframes) do
+			if k[1] == frame then
+				kf = k
+				break
+			end
+			if k[1] > frame then
+				kf = { frame }
+				table.insert(b.keyframes, i, kf)
+				break
+			end
+		end
+		if not kf then
+			kf = { frame }
+			table.insert(b.keyframes, kf)
+		end
+		kf[2] = b.x
+		kf[3] = b.y
+		kf[4] = b.ang
+	end)
+end
+function delete_bone_keyframe(frame)
+	for_all_bones(function(b)
+		for i, k in ipairs(b.keyframes) do
+			if k[1] == frame then
+				table.remove(b.keyframes, i)
+				break
+			end
+		end
+	end)
+end
+local keyframe_buffer = nil
+function copy_bone_keyframe(frame)
+	keyframe_buffer = {}
+	for_all_bones(function(b)
+		for _, k in ipairs(b.keyframes) do
+			if k[1] == frame then
+				table.insert(keyframe_buffer, { k[2], k[3], k[4] })
+				break
+			end
+		end
+	end)
+end
+function paste_bone_keyframe(frame)
+	local i = 1
+	for_all_bones(function(b)
+
+		local q = keyframe_buffer[i]
+		if not q then return true end
+		i = i + 1
+
+		local kf
+		for i, k in ipairs(b.keyframes) do
+			if k[1] == frame then
+				kf = k
+				break
+			end
+			if k[1] > frame then
+				kf = { frame }
+				table.insert(b.keyframes, i, kf)
+				break
+			end
+		end
+		if not kf then
+			kf = { frame }
+			table.insert(b.keyframes, kf)
+		end
+		kf[2] = q[1]
+		kf[3] = q[2]
+		kf[4] = q[3]
+	end)
+	set_bone_frame(frame)
+end
+
 
 
 function load_bones(name)
