@@ -31,7 +31,7 @@ function edit:set_playing(p)
 	if self.is_playing then
 		if self.mode == "mesh" then self:toggle_mode() end
 	else
-		self:set_frame(math.floor(self.frame))
+		self:set_frame(math.floor(self.frame + 0.5))
 	end
 end
 function edit:toggle_mode()
@@ -66,10 +66,6 @@ function edit:toggle_mode()
 		self.poly = {}
 		self.selected_vertices = {}
 	end
-end
-function edit:update_mouse_pos(x, y)
-	self.mx = cam.x + (x - G.getWidth() / 2) * cam.zoom
-	self.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
 end
 
 
@@ -219,7 +215,8 @@ end
 function love.mousemoved(x, y, dx, dy)
 	if gui:mousemoved(x, y, dx, dy) then return end
 
-	edit:update_mouse_pos(x, y)
+	edit.mx = cam.x + (x - G.getWidth() / 2) * cam.zoom
+	edit.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
 	dx = dx * cam.zoom
 	dy = dy * cam.zoom
 	if love.keyboard.isDown("lshift", "rshift") then
@@ -433,7 +430,7 @@ function do_gui()
 				- (gui.was_key_pressed["left"] and 1 or 0)
 		if dx ~= 0 then
 			if shift then dx = dx * 10 end
-			edit:set_fram(edit.frame + dx)
+			edit:set_frame(edit.frame + dx)
 		end
 		if gui:mouse_in_box(box) and gui.is_mouse_down then
 			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
