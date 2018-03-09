@@ -4,7 +4,7 @@ function new_bone(x, y, ang, poly)
 		x    = x or 0,
 		y    = y or 0,
 		ang  = ang or 0,
-		poly = poly or { -25, -25, 25, -25, 25, 25, -25, 25 },
+		poly = poly or {},
 		keyframes = {},
 	}
 	return b
@@ -24,11 +24,9 @@ function update_bone(b)
 	}
 	local si = math.sin(p.global_ang)
 	local co = math.cos(p.global_ang)
-
 	b.global_x = p.global_x + b.x * co - b.y * si
 	b.global_y = p.global_y + b.y * co + b.x * si
 	b.global_ang = p.global_ang + b.ang
-
 	for _, k in ipairs(b.kids) do
 		update_bone(k)
 	end
@@ -116,7 +114,7 @@ function delete_bone_keyframe(frame)
 		end
 	end)
 end
-local keyframe_buffer = nil
+local keyframe_buffer = {}
 function copy_bone_keyframe(frame)
 	keyframe_buffer = {}
 	for_all_bones(function(b)
@@ -131,11 +129,9 @@ end
 function paste_bone_keyframe(frame)
 	local i = 1
 	for_all_bones(function(b)
-
 		local q = keyframe_buffer[i]
 		if not q then return true end
 		i = i + 1
-
 		local kf
 		for i, k in ipairs(b.keyframes) do
 			if k[1] == frame then
@@ -175,7 +171,6 @@ function load_bones(name)
 	end
 	root_bone = load(data)
 	selected_bone = root_bone
-
 	update_bone(root_bone)
 	print("bones loaded")
 end

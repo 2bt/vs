@@ -12,16 +12,34 @@ cam = {
 }
 edit = {
 	is_playing = false,
-	ik_length  = 2,
+	play_speed = 0.2,
 	frame      = 0,
+
+	ik_length  = 2,
+
 	mode       = "bone",
 	poly       = {},
 	selected_vertices = {},
 }
+function edit:set_frame(f)
+	if self.mode == "mesh" then return end
+	self.frame = math.max(0, f)
+	set_bone_frame(self.frame)
+end
+function edit:set_playing(p)
+	self.is_playing = p
+	if self.is_playing then
+		if self.mode == "mesh" then self:toggle_mode() end
+	else
+		self:set_frame(math.floor(self.frame))
+	end
+end
 function edit:toggle_mode()
 	self.mode = self.mode == "bone" and "mesh" or "bone"
 
 	if self.mode == "mesh" then
+		self:set_playing(false)
+
 		-- transform poly into world space
 		local b = selected_bone
 		local si = math.sin(b.global_ang)
@@ -355,8 +373,7 @@ end
 
 function love.update()
 	if edit.is_playing then
-		edit.frame = edit.frame + 1
-		set_bone_frame(edit.frame)
+		edit:set_frame(edit.frame + edit.play_speed)
 	end
 end
 
@@ -383,9 +400,11 @@ function do_gui()
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
 	end
 
+	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
+	local shift = love.keyboard.isDown("lshift", "rshift")
+
 	do
 		gui:select_win(2)
-		local ctrl = love.keyboard.isDown("lctrl", "rctrl")
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
@@ -408,20 +427,16 @@ function do_gui()
 
 		-- change frame
 		if gui.was_key_pressed["backspace"] then
-			edit.frame = 0
-			set_bone_frame(edit.frame)
+			edit:set_frame(0)
 		end
-		if gui.was_key_pressed["left"] then
-			edit.frame = math.max(0, edit.frame - 1)
-			set_bone_frame(edit.frame)
-		end
-		if gui.was_key_pressed["right"] then
-			edit.frame = edit.frame + 1
-			set_bone_frame(edit.frame)
+		local dx = (gui.was_key_pressed["right"] and 1 or 0)
+				- (gui.was_key_pressed["left"] and 1 or 0)
+		if dx ~= 0 then
+			if shift then dx = dx * 10 end
+			edit:set_fram(edit.frame + dx)
 		end
 		if gui:mouse_in_box(box) and gui.is_mouse_down then
-			edit.frame = math.floor((gui.mx - box.x - 5) / 10 + 0.5)
-			set_bone_frame(edit.frame)
+			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
 		end
 
 		G.setScissor(box.x, box.y, box.w, box.h)
@@ -473,7 +488,7 @@ function do_gui()
 		gui:same_line()
 		if edit.is_playing ~= t[1]
 		or gui.was_key_pressed["space"] then
-			edit.is_playing = not edit.is_playing
+			edit:set_playing(not edit.is_playing)
 		end
 		gui:separator()
 
