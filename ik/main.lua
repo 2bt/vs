@@ -440,7 +440,7 @@ function do_gui()
 		G.line(x, 0, x, 45)
 
 		-- lines
-		i = 0
+		local i = 0
 		for x = 5, box.w, 10 do
 			G.setColor(255, 255, 255)
 			if i % 10 == 0 then
