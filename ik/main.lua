@@ -204,6 +204,10 @@ function love.mousemoved(x, y, dx, dy)
 	edit:update_mouse_pos(x, y)
 	dx = dx * cam.zoom
 	dy = dy * cam.zoom
+	if love.keyboard.isDown("lshift", "rshift") then
+		dx = dx * 0.1
+		dy = dy * 0.1
+	end
 
 	-- move camera
 	if love.mouse.isDown(3) then
@@ -233,7 +237,7 @@ function love.mousemoved(x, y, dx, dy)
 			local b = selected_bone
 			local bx = edit.mx - b.global_x
 			local by = edit.my - b.global_y
-			local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
+			local a = math.atan2(bx - dx, by - dy) - math.atan2(bx, by)
 			if a < -math.pi then a = a + 2 * math.pi end
 			if a > math.pi then a = a - 2 * math.pi end
 			b.ang = b.ang + a
