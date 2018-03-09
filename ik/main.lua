@@ -22,7 +22,7 @@ edit = {
 	selected_vertices = {},
 }
 function edit:set_frame(f)
-	if self.mode == "mesh" then return end
+	if self.mode == "mesh" then self:toggle_mode() end
 	self.frame = math.max(0, f)
 	set_bone_frame(self.frame)
 end
@@ -38,7 +38,9 @@ function edit:toggle_mode()
 	self.mode = self.mode == "bone" and "mesh" or "bone"
 
 	if self.mode == "mesh" then
-		self:set_playing(false)
+		self.is_playing = false
+		self.frame = math.floor(self.frame + 0.5)
+		set_bone_frame(self.frame)
 
 		-- transform poly into world space
 		local b = selected_bone
