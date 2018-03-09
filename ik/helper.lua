@@ -19,6 +19,8 @@ function table.tostring(t)
 			buf[#buf+1] = "}"
 		elseif t == "string" then
 			buf[#buf+1] = ("%q"):format(o)
+		elseif t == "number" then
+			buf[#buf+1] = ("%g"):format(o)
 		else
 			buf[#buf+1] = tostring(o)
 		end

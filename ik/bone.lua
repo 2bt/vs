@@ -160,7 +160,6 @@ function paste_bone_keyframe(frame)
 end
 
 
-
 function load_bones(name)
 	local file = io.open(name)
 	local str = file:read("*a")
@@ -168,6 +167,7 @@ function load_bones(name)
 	local data = loadstring("return " .. str)()
 	local function load(d)
 		local b = new_bone(d.x, d.y, d.ang, d.poly)
+		b.keyframes = d.keyframes
 		for _, k in ipairs(d.kids) do
 			add_bone(b, load(k))
 		end
@@ -184,10 +184,11 @@ end
 function save_bones(name)
 	local function save(b)
 		local data = {
-			x = b.x,
-			y = b.y,
-			ang = b.ang,
-			poly = b.poly,
+			x         = b.x,
+			y         = b.y,
+			ang       = b.ang,
+			poly      = b.poly,
+			keyframes = b.keyframes,
 			kids = {},
 		}
 		for _, k in ipairs(b.kids) do
