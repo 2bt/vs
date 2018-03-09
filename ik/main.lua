@@ -405,6 +405,12 @@ function do_gui()
 		end
 		gui:separator()
 
+		if gui.was_key_pressed["#"] then
+			local v = not edit.show_grid
+			edit.show_grid   = v
+			edit.show_joints = v
+			edit.show_bones  = v
+		end
 
 		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("joints", edit, "show_joints")
