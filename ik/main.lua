@@ -3,18 +3,19 @@ require("bone")
 require("gui")
 
 G = love.graphics
-
+love.keyboard.setKeyRepeat(true)
 
 cam = {
-	x = 0,
-	y = 0,
+	x    = 0,
+	y    = 0,
 	zoom = 1,
 }
 edit = {
-	ik_length = 2,
-	frame     = 0,
-	mode      = "bone",
-	poly      = {},
+	is_playing = false,
+	ik_length  = 2,
+	frame      = 0,
+	mode       = "bone",
+	poly       = {},
 	selected_vertices = {},
 }
 function edit:toggle_mode()
@@ -348,9 +349,11 @@ function love.mousemoved(x, y, dx, dy)
 end
 
 
-tick = 0
 function love.update()
-	tick = tick + 1
+	if edit.is_playing then
+		edit.frame = edit.frame + 1
+		set_bone_frame(edit.frame)
+	end
 end
 
 
@@ -358,15 +361,9 @@ function do_gui()
 	G.origin()
 	gui:begin_frame()
 
-
-	-- left win
 	do
 		gui:select_win(1)
 		local t = { edit.mode }
-		gui:get_new_item_box(0, 25, 0)
-		gui:same_line()
-		gui:text("mode:")
-		gui:same_line()
 		gui:radio_button_2("bone", "bone", t)
 		gui:same_line()
 		gui:radio_button_2("mesh", "mesh", t)
@@ -382,16 +379,9 @@ function do_gui()
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
 	end
 
-	-- right win
 	do
 		gui:select_win(2)
-		gui:get_new_item_box(0, 25, 0)
-		gui:same_line()
-		gui:text("model:")
-		gui:same_line()
-
 		local ctrl = love.keyboard.isDown("lctrl", "rctrl")
-
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
@@ -405,15 +395,26 @@ function do_gui()
 		end
 	end
 
-	-- timeline
 	do
 		gui:select_win(3)
-		gui:begin_column()
 
+		-- timeline
 		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
 		local box = gui:get_new_item_box(w, 45)
 
-		-- select frame
+		-- change frame
+		if gui.was_key_pressed["backspace"] then
+			edit.frame = 0
+			set_bone_frame(edit.frame)
+		end
+		if gui.was_key_pressed["left"] then
+			edit.frame = math.max(0, edit.frame - 1)
+			set_bone_frame(edit.frame)
+		end
+		if gui.was_key_pressed["right"] then
+			edit.frame = edit.frame + 1
+			set_bone_frame(edit.frame)
+		end
 		if gui:mouse_in_box(box) and gui.is_mouse_down then
 			edit.frame = math.floor((gui.mx - box.x - 5) / 10 + 0.5)
 			set_bone_frame(edit.frame)
@@ -430,9 +431,10 @@ function do_gui()
 			end
 		end)
 
-		-- draw
 		G.setColor(100, 100, 100, 200)
 		G.rectangle("fill", 0, 0, box.w, box.h)
+
+		-- current frame
 		G.setColor(0, 255, 0)
 		local x = 5 + edit.frame * 10
 		G.line(x, 0, x, 45)
@@ -448,6 +450,7 @@ function do_gui()
 				G.line(x, 40, x, 45)
 			end
 
+			-- keyframe
 			if is_keyframe[i] then
 				G.setColor(255, 200, 100)
 				G.circle("fill", x, 10, 5, 4)
@@ -457,8 +460,21 @@ function do_gui()
 
 		G.pop()
 		G.setScissor()
-		gui:end_column()
 
+		-- play
+		local t = { edit.is_playing }
+		gui:radio_button_2("stop", false, t)
+		gui:same_line()
+		gui:radio_button_2("play", true, t)
+		gui:same_line()
+		if edit.is_playing ~= t[1]
+		or gui.was_key_pressed["space"] then
+			edit.is_playing = not edit.is_playing
+		end
+		gui:separator()
+
+
+		-- keyframe buttons
 		gui:get_new_item_box(0, 25, 0)
 		gui:same_line()
 		gui:text("keyframe:")
