@@ -486,6 +486,10 @@ function do_gui()
 end
 
 
+local function draw_concav_poly(p)
+	local tris = love.math.triangulate(p)
+	for _, t in ipairs(tris) do G.polygon("fill", t) end
+end
 function love.draw()
 	G.translate(G.getWidth() / 2, G.getHeight() / 2)
 	G.scale(1 / cam.zoom)
@@ -518,11 +522,11 @@ function love.draw()
 		if b == selected_bone then
 			if edit.mode ~= "mesh" and #b.poly >= 3 then
 				G.setColor(80, 150, 80, 150)
-				G.polygon("fill", b.poly)
+				draw_concav_poly(b.poly)
 			end
 		elseif #b.poly >= 3 then
 			G.setColor(80, 80, 150, 150)
-			G.polygon("fill", b.poly)
+			draw_concav_poly(b.poly)
 		end
 		G.pop()
 
@@ -558,7 +562,7 @@ function love.draw()
 		-- mesh
 		if #edit.poly >= 6 then
 			G.setColor(80, 150, 80, 150)
-			G.polygon("fill", edit.poly)
+			draw_concav_poly(edit.poly)
 			G.setColor(255, 255, 255, 150)
 			G.polygon("line", edit.poly)
 		end
