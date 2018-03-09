@@ -221,7 +221,6 @@ function love.mousemoved(x, y, dx, dy)
 
 
 	if edit.mode == "bone" then
-		-- move
 		local function move(dx, dy)
 			local b = selected_bone
 			local si = math.sin(b.global_ang - b.ang)
@@ -233,12 +232,14 @@ function love.mousemoved(x, y, dx, dy)
 			update_bone(b)
 			return
 		end
-		if love.keyboard.isDown("g") then
-			move(dx, dy)
-		end
 
-		-- rotate
-		if love.keyboard.isDown("r") then
+
+		if love.keyboard.isDown("g") then
+			-- move
+			move(dx, dy)
+
+		elseif love.keyboard.isDown("r") then
+			-- rotate
 			local b = selected_bone
 			local bx = edit.mx - b.global_x
 			local by = edit.my - b.global_y
@@ -247,11 +248,9 @@ function love.mousemoved(x, y, dx, dy)
 			if a > math.pi then a = a - 2 * math.pi end
 			b.ang = b.ang + a
 			update_bone(b)
-			return
-		end
 
-		-- ik
-		if love.mouse.isDown(1) then
+		elseif love.mouse.isDown(1) then
+			-- ik
 			if not selected_bone.parent then
 				move(dx, dy)
 				return
@@ -296,18 +295,64 @@ function love.mousemoved(x, y, dx, dy)
 				end
 				if not improve then break end
 			end
-			return
 		end
 	elseif edit.mode == "mesh" then
 
-		-- move
+		local function get_selection_center()
+			local cx = 0
+			local cy = 0
+			for _, i in ipairs(edit.selected_vertices) do
+				cx = cx + edit.poly[i    ]
+				cy = cy + edit.poly[i + 1]
+			end
+			cx = cx / #edit.selected_vertices
+			cy = cy / #edit.selected_vertices
+			return cx, cy
+		end
+
 		if love.mouse.isDown(1) then
+			-- move
 			for _, i in ipairs(edit.selected_vertices) do
 				edit.poly[i    ] = edit.poly[i    ] + dx
 				edit.poly[i + 1] = edit.poly[i + 1] + dy
 			end
-		end
 
+		elseif love.keyboard.isDown("s") then
+			-- scale
+			local cx, cy = get_selection_center()
+			local dx1 = edit.mx - cx - dx
+			local dy1 = edit.my - cy - dy
+			local dx2 = edit.mx - cx
+			local dy2 = edit.my - cy
+			local l1 = (dx1 * dx1 + dy1 * dy1) ^ 0.5
+			local l2 = (dx2 * dx2 + dy2 * dy2) ^ 0.5
+			local s = l2 / l1
+
+			for _, i in ipairs(edit.selected_vertices) do
+				edit.poly[i    ] = cx + (edit.poly[i    ] - cx) * s
+				edit.poly[i + 1] = cy + (edit.poly[i + 1] - cy) * s
+			end
+
+		elseif love.keyboard.isDown("r") then
+			-- rotate
+			local cx, cy = get_selection_center()
+
+			local bx = edit.mx - cx
+			local by = edit.my - cy
+			local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
+			if a < -math.pi then a = a + 2 * math.pi end
+			if a > math.pi then a = a - 2 * math.pi end
+			local si = math.sin(a)
+			local co = math.cos(a)
+
+			for _, i in ipairs(edit.selected_vertices) do
+				local dx = edit.poly[i    ] - cx
+				local dy = edit.poly[i + 1] - cy
+				edit.poly[i    ] = cx + dx * co - dy * si
+				edit.poly[i + 1] = cy + dy * co + dx * si
+			end
+
+		end
 	end
 end
 
