@@ -193,7 +193,7 @@ function gui:button(label)
 	end
 
 	if label == self.active_item then
-		G.setColor(255, 100, 100, 200)
+		G.setColor(200, 100, 100, 200)
 	elseif hover then
 		G.setColor(150, 100, 100, 200)
 	else
@@ -220,7 +220,7 @@ function gui:checkbox(label, t, n)
 	end
 
 	if label == self.active_item then
-		G.setColor(255, 100, 100, 200)
+		G.setColor(200, 100, 100, 200)
 	elseif hover then
 		G.setColor(150, 100, 100, 200)
 	else
@@ -232,7 +232,6 @@ function gui:checkbox(label, t, n)
 		G.setColor(255, 255, 255, 200)
 		G.rectangle("fill", box.x + 5, box.y + 5, box.h - 10, box.h - 10)
 	end
-
 
 	G.setColor(255, 255, 255)
 	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
@@ -252,20 +251,14 @@ function gui:radio_button(label, v, t)
 		end
 	end
 
-	if label == self.active_item then
-		G.setColor(255, 100, 100, 200)
+	if t[1] == v or label == self.active_item then
+		G.setColor(200, 100, 100, 200)
 	elseif hover then
 		G.setColor(150, 100, 100, 200)
 	else
 		G.setColor(100, 100, 100, 200)
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
-
-	if t[1] == v then
-		G.setColor(255, 255, 255, 200)
-		G.rectangle("line", box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, PADDING)
-	end
-
 
 	G.setColor(255, 255, 255)
 	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")

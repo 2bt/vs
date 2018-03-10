@@ -1,10 +1,10 @@
 Bone = Object:new()
 function Bone:init(x, y, ang)
-	self.kids = {}
-	self.x    = x or 0
-	self.y    = y or 0
-	self.ang  = ang or 0
-	self.poly = {}
+	self.x         = x or 0
+	self.y         = y or 0
+	self.ang       = ang or 0
+	self.kids      = {}
+	self.poly      = {}
 	self.keyframes = {}
 end
 function Bone:add_kid(k)
@@ -34,22 +34,47 @@ function Bone:update()
 end
 
 
+local keyframe_buffer = {}
+
+
 Model = Object:new()
 function Model:init()
 	self.root = Bone()
 	self.root:update()
+	self.bones = { self.root }
 end
-function Model:for_all_bones(func)
-	local function visit(b, func)
-		if func(b) then return true end
-		for _, k in ipairs(b.kids) do
-			if visit(k, func) then return true end
+function Model:add_bone(b)
+	self.bones[#self.bones + 1] = b
+	-- NOTE: kid bones are not added to table
+end
+function Model:change_bone_layer(b, d)
+	if d ~= 1 and d ~= -1 then return end
+	keyframe_buffer = {}
+	for i, p in ipairs(self.bones) do
+		if p == b then
+			if self.bones[i + d] then
+				self.bones[i + d], self.bones[i] = self.bones[i], self.bones[i + d]
+			end
+			break
 		end
 	end
-	visit(self.root, func)
+end
+function Model:delete_bone(b)
+	keyframe_buffer = {}
+	for i, p in ipairs(self.bones) do
+		if p == b then
+			table.remove(self.bones, i)
+			break
+		end
+	end
+end
+function Model:for_all_bones(func)
+	for _, b in ipairs(self.bones) do
+		if func(b) then break end
+	end
 end
 function Model:set_frame(frame)
-	self:for_all_bones(function(b)
+	for _, b in ipairs(self.bones) do
 		local k1, k2
 		for i, k in ipairs(b.keyframes) do
 			if k[1] < frame then
@@ -72,7 +97,7 @@ function Model:set_frame(frame)
 			b.y   = k[3]
 			b.ang = k[4]
 		end
-	end)
+	end
 	self.root:update()
 end
 function Model:load(name)
@@ -80,34 +105,38 @@ function Model:load(name)
 	local str = file:read("*a")
 	file:close()
 	local data = loadstring("return " .. str)()
-	local function load(d)
+	self.bones = {}
+	for _, d in ipairs(data) do
 		local b = Bone(d.x, d.y, d.ang)
 		b.poly      = d.poly
 		b.keyframes = d.keyframes
-		for _, k in ipairs(d.kids) do
-			b:add_kid(load(k))
-		end
-		return b
+		table.insert(self.bones, b)
 	end
-	self.root = load(data)
+	for i, d in ipairs(data) do
+		local b = self.bones[i]
+		if d.parent then
+			self.bones[d.parent]:add_kid(b)
+		else
+			self.root = b
+		end
+	end
 	self.root:update()
 end
 function Model:save(name)
-	local function save(b)
-		local data = {
+	local order = {}
+	for i, b in ipairs(self.bones) do order[b] = i end
+	local data = {}
+	for _, b in ipairs(self.bones) do
+		local d = {
 			x         = b.x,
 			y         = b.y,
 			ang       = b.ang,
 			poly      = b.poly,
 			keyframes = b.keyframes,
-			kids = {},
+			parent    = order[b.parent]
 		}
-		for _, k in ipairs(b.kids) do
-			table.insert(data.kids, save(k))
-		end
-		return data
+		table.insert(data, d)
 	end
-	local data = save(self.root)
 	local file = io.open(name, "w")
 	file:write(table.tostring(data) .. "\n")
 	file:close()
@@ -115,7 +144,7 @@ end
 
 -- keyframe stuff
 function Model:insert_keyframe(frame)
-	self:for_all_bones(function(b)
+	for _, b in ipairs(self.bones) do
 		local kf
 		for i, k in ipairs(b.keyframes) do
 			if k[1] == frame then
@@ -135,45 +164,42 @@ function Model:insert_keyframe(frame)
 		kf[2] = b.x
 		kf[3] = b.y
 		kf[4] = b.ang
-	end)
+	end
 end
 function Model:delete_keyframe(frame)
-	self:for_all_bones(function(b)
+	for _, b in ipairs(self.bones) do
 		for i, k in ipairs(b.keyframes) do
 			if k[1] == frame then
 				table.remove(b.keyframes, i)
 				break
 			end
 		end
-	end)
+	end
 end
-local keyframe_buffer = {}
 function Model:copy_keyframe(frame)
 	keyframe_buffer = {}
-	self:for_all_bones(function(b)
+	for _, b in ipairs(self.bones) do
 		for _, k in ipairs(b.keyframes) do
 			if k[1] == frame then
 				table.insert(keyframe_buffer, { k[2], k[3], k[4] })
 				break
 			end
 		end
-	end)
+	end
 end
 function Model:paste_keyframe(frame)
-	local i = 1
-	self:for_all_bones(function(b)
+	for i, b in ipairs(self.bones) do
 		local q = keyframe_buffer[i]
-		if not q then return true end
-		i = i + 1
+		if not q then break end
 		local kf
-		for i, k in ipairs(b.keyframes) do
+		for j, k in ipairs(b.keyframes) do
 			if k[1] == frame then
 				kf = k
 				break
 			end
 			if k[1] > frame then
 				kf = { frame }
-				table.insert(b.keyframes, i, kf)
+				table.insert(b.keyframes, j, kf)
 				break
 			end
 		end
@@ -184,7 +210,7 @@ function Model:paste_keyframe(frame)
 		kf[2] = q[1]
 		kf[3] = q[2]
 		kf[4] = q[3]
-	end)
+	end
 	self:set_frame(frame)
 end
 

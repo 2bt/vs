@@ -95,6 +95,7 @@ function love.keypressed(k)
 			local k = edit.selected_bone
 			edit.selected_bone = k.parent
 			edit.selected_bone:delete_kid(k)
+			model:delete_bone(k)
 		end
 
 	elseif k == "x" and edit.mode == "mesh" then
@@ -125,7 +126,7 @@ function love.mousepressed(x, y, button)
 		model:for_all_bones(function(b)
 			local d = math.max(
 				math.abs(b.global_x - edit.mx),
-				math.abs(b.global_y - edit.my))
+				math.abs(b.global_y - edit.my)) / cam.zoom
 			if d < 10 then
 				edit.selected_bone = b
 				return true
@@ -140,6 +141,7 @@ function love.mousepressed(x, y, button)
 		local dx = edit.mx - b.global_x
 		local dy = edit.my - b.global_y
 		local k = Bone(dx * co + dy * si, dy * co - dx * si)
+		model:add_bone(k)
 		b:add_kid(k)
 		k:update()
 		edit.selected_bone = k
@@ -193,7 +195,7 @@ function love.mousereleased(x, y, button)
 			for i = 1, #edit.poly, 2 do
 				local d = math.max(
 					math.abs(edit.poly[i    ] - edit.mx),
-					math.abs(edit.poly[i + 1] - edit.my))
+					math.abs(edit.poly[i + 1] - edit.my)) / cam.zoom
 				if d < 10 then
 					edit.selected_vertices[1] = i
 					break
@@ -387,6 +389,7 @@ end
 
 function do_gui()
 	G.origin()
+	G.setLineWidth(1)
 	gui:begin_frame()
 
 	do
@@ -417,6 +420,14 @@ function do_gui()
 		gui:text("x: %.2f", b.x)
 		gui:text("y: %.2f", b.y)
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
+
+		if gui:button("to front") then
+			model:change_bone_layer(edit.selected_bone, 1)
+		end
+		if gui:button("to back") then
+			model:change_bone_layer(edit.selected_bone, -1)
+		end
+
 	end
 
 	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
@@ -424,6 +435,13 @@ function do_gui()
 
 	do
 		gui:select_win(2)
+		if gui:button("new")
+		or (gui.was_key_pressed["n"] and ctrl) then
+			if edit.mode == "mesh" then edit:toggle_mode() end
+			model = Model()
+			edit.selected_bone = model.root
+		end
+		gui:same_line()
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
@@ -553,13 +571,11 @@ function love.draw()
 	G.translate(-cam.x, -cam.y)
 	G.setLineWidth(cam.zoom)
 
-
+	-- axis and grid
 	do
-		-- axis
 		G.setColor(255, 255, 255, 50)
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
-
 		if edit.show_grid then
 			for x = -1000, 1000, 100 do
 				G.line(x, -1000, x, 1000)
@@ -570,22 +586,22 @@ function love.draw()
 		end
 	end
 
-
 	-- mesh
 	model:for_all_bones(function(b)
-		G.push()
-		G.translate(b.global_x, b.global_y)
-		G.rotate(b.global_ang)
 		if #b.poly >= 3 then
 			if b ~= edit.selected_bone or edit.mode ~= "mesh" then
-				G.setColor(140, 90, 50)
+				G.push()
+				G.translate(b.global_x, b.global_y)
+				G.rotate(b.global_ang)
+				G.setColor(120, 80, 80)
 				draw_concav_poly(b.poly)
-				G.setColor(110, 60, 20)
+				G.setColor(100, 60, 60)
 				G.polygon("line", b.poly)
+				G.pop()
 			end
 		end
-		G.pop()
 	end)
+
 	-- bone
 	if edit.show_bones then
 		model:for_all_bones(function(b)
@@ -605,7 +621,6 @@ function love.draw()
 		end)
 	end
 
-
 	-- joint
 	if edit.show_joints then
 		model:for_all_bones(function(b)
@@ -623,7 +638,7 @@ function love.draw()
 
 		-- mesh
 		if #edit.poly >= 6 then
-			G.setColor(80, 150, 80, 150)
+			G.setColor(200, 100, 100, 150)
 			draw_concav_poly(edit.poly)
 			G.setColor(255, 255, 255, 150)
 			G.polygon("line", edit.poly)
@@ -632,6 +647,7 @@ function love.draw()
 		G.setPointSize(5)
 		G.points(edit.poly)
 
+		-- selected vertices
 		local s = {}
 		for _, i in ipairs(edit.selected_vertices) do
 			s[#s + 1] = edit.poly[i]
