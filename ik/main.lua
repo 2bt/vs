@@ -112,8 +112,8 @@ function love.keypressed(k)
 	elseif k == "a" and edit.mode == "mesh" then
 		-- toggle select
 		local v = {}
-		if #edit.selected_vertices > 0 then
-			for i = #edit.selected_vertices, 1, -1 do
+		if #edit.selected_vertices == 0 then
+			for i = 1, #edit.poly, 2 do
 				v[#v + 1] = i
 			end
 		end
@@ -572,48 +572,52 @@ function love.draw()
 	end
 
 
+	-- mesh
 	for_all_bones(function(b)
-
-		-- mesh
 		G.push()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
-		if b == selected_bone then
-			if edit.mode ~= "mesh" and #b.poly >= 3 then
-				G.setColor(80, 150, 80, 150)
+		if #b.poly >= 3 then
+			if b ~= selected_bone or edit.mode ~= "mesh" then
+				G.setColor(140, 90, 50)
 				draw_concav_poly(b.poly)
+				G.setColor(110, 60, 20)
+				G.polygon("line", b.poly)
 			end
-		elseif #b.poly >= 3 then
-			G.setColor(80, 80, 150, 150)
-			draw_concav_poly(b.poly)
 		end
 		G.pop()
+	end)
+	-- bone
+	if edit.show_bones then
+		for_all_bones(function(b)
+			if b.parent then
+				local dx = b.global_x - b.parent.global_x
+				local dy = b.global_y - b.parent.global_y
+				local l = (dx * dx + dy * dy) ^ 0.5 * 0.1 / cam.zoom
+				G.setColor(100, 150, 200, 150)
+				G.polygon("fill",
+					b.parent.global_x + dy / l,
+					b.parent.global_y - dx / l,
+					b.parent.global_x - dy / l,
+					b.parent.global_y + dx / l,
+					b.global_x,
+					b.global_y)
+			end
+		end)
+	end
 
-		-- bone
-		if edit.show_bones and b.parent then
-			local dx = b.global_x - b.parent.global_x
-			local dy = b.global_y - b.parent.global_y
-			local l = (dx * dx + dy * dy) ^ 0.5 * 0.1 / cam.zoom
-			G.setColor(255, 255, 255, 50)
-			G.polygon("fill",
-				b.parent.global_x + dy / l,
-				b.parent.global_y - dx / l,
-				b.parent.global_x - dy / l,
-				b.parent.global_y + dx / l,
-				b.global_x,
-				b.global_y)
-		end
 
-		-- joint
-		if edit.show_joints then
-			G.setColor(255, 255, 255, 150)
-			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
+	-- joint
+	if edit.show_joints then
+		for_all_bones(function(b)
 			if b == selected_bone then
-				G.setColor(255, 255, 0, 100)
+				G.setColor(255, 255, 0, 150)
 				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 			end
-		end
-	end)
+			G.setColor(255, 255, 255, 150)
+			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
+		end)
+	end
 
 
 	if edit.mode == "mesh" then
