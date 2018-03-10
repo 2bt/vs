@@ -82,11 +82,6 @@ end
 
 
 function love.keypressed(k)
-	if k == "escape" then
-		love.event.quit()
-		return
-	end
-
 	gui:keypressed(k)
 
 	if k == "x" and edit.mode == "bone" then
@@ -456,6 +451,13 @@ function do_gui()
 			model:save("save")
 			print("model saved")
 		end
+		gui:same_line()
+		if gui:button("quit")
+		or gui.was_key_pressed["escape"] then
+			love.event.quit()
+		end
+
+
 	end
 
 	do
