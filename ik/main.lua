@@ -1,10 +1,11 @@
 require("helper")
-require("bone")
+require("model")
 require("gui")
 
 G = love.graphics
 love.keyboard.setKeyRepeat(true)
 
+model = Model()
 cam = {
 	x    = 0,
 	y    = 0,
@@ -23,12 +24,12 @@ edit = {
 	ik_length         = 2,
 	poly              = {},
 	selected_vertices = {},
-	selected_bone     = init_bone(),
+	selected_bone     = model.root,
 }
 function edit:set_frame(f)
 	if self.mode == "mesh" then self:toggle_mode() end
 	self.frame = math.max(0, f)
-	set_bone_frame(self.frame)
+	model:set_frame(self.frame)
 end
 function edit:set_playing(p)
 	self.is_playing = p
@@ -44,7 +45,7 @@ function edit:toggle_mode()
 	if self.mode == "mesh" then
 		self.is_playing = false
 		self.frame = math.floor(self.frame + 0.5)
-		set_bone_frame(self.frame)
+		model:set_frame(self.frame)
 
 		-- transform poly into world space
 		local b = self.selected_bone
@@ -90,7 +91,11 @@ function love.keypressed(k)
 
 	if k == "x" and edit.mode == "bone" then
 		-- delete bone
-		edit.selected_bone = delete_bone(edit.selected_bone)
+		if edit.selected_bone.parent then
+			local k = edit.selected_bone
+			edit.selected_bone = k.parent
+			edit.selected_bone:delete_kid(k)
+		end
 
 	elseif k == "x" and edit.mode == "mesh" then
 		-- delete selected vertice
@@ -117,7 +122,7 @@ end
 function love.mousepressed(x, y, button)
 	if edit.mode == "bone" and button == 2 then
 		-- select bone
-		for_all_bones(function(b)
+		model:for_all_bones(function(b)
 			local d = math.max(
 				math.abs(b.global_x - edit.mx),
 				math.abs(b.global_y - edit.my))
@@ -134,11 +139,10 @@ function love.mousepressed(x, y, button)
 		local co = math.cos(b.global_ang)
 		local dx = edit.mx - b.global_x
 		local dy = edit.my - b.global_y
-		local k = new_bone(dx * co + dy * si, dy * co - dx * si)
-		add_bone(b, k)
-		update_bone(k)
+		local k = Bone(dx * co + dy * si, dy * co - dx * si)
+		b:add_kid(k)
+		k:update()
 		edit.selected_bone = k
-
 
 	elseif edit.mode == "mesh" and button == 1 and love.keyboard.isDown("c") then
 		-- add new vertex
@@ -167,7 +171,7 @@ function love.mousepressed(x, y, button)
 
 		table.insert(edit.poly, index, edit.mx)
 		table.insert(edit.poly, index + 1, edit.my)
-		edit.selected_vertices = { index }
+	edit.selected_vertices = { index }
 
 	elseif edit.mode == "mesh" and button == 2 then
 		-- vertex selection rect
@@ -245,7 +249,7 @@ function love.mousemoved(x, y, dx, dy)
 			local co = math.cos(b.global_ang - b.ang)
 			b.x = b.x + dx * co + dy * si
 			b.y = b.y + dy * co - dx * si
-			update_bone(b)
+			b:update()
 		end
 
 
@@ -262,7 +266,7 @@ function love.mousemoved(x, y, dx, dy)
 			if a < -math.pi then a = a + 2 * math.pi end
 			if a > math.pi then a = a - 2 * math.pi end
 			b.ang = b.ang + a
-			update_bone(b)
+			b:update()
 
 		elseif love.mouse.isDown(1) then
 			-- ik
@@ -291,13 +295,13 @@ function love.mousemoved(x, y, dx, dy)
 
 					local e = calc_error()
 					b.ang = b.ang + delta
-					update_bone(b)
+					b:update()
 					if calc_error() > e then
 						b.ang = b.ang - delta * 2
-						update_bone(b)
+						b:update()
 						if calc_error() > e then
 							b.ang = b.ang + delta
-							update_bone(b)
+							b:update()
 						else
 							improve = true
 						end
@@ -423,15 +427,16 @@ function do_gui()
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			edit.selected_bone = load_bones("save")
-			print("bones loaded")
+			model:load("save")
+			edit.selected_bone = model.root
+			print("model loaded")
 		end
 		gui:same_line()
 		if gui:button("save")
 		or (gui.was_key_pressed["s"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			save_bones("save")
-			print("bones saved")
+			model:save("save")
+			print("model saved")
 		end
 	end
 
@@ -461,7 +466,7 @@ function do_gui()
 		G.translate(box.x, box.y)
 
 		local is_keyframe = {}
-		for_all_bones(function(b)
+		model:for_all_bones(function(b)
 			for _, k in ipairs(b.keyframes) do
 				is_keyframe[k[1]] = true
 			end
@@ -516,21 +521,21 @@ function do_gui()
 		gui:text("keyframe:")
 		gui:same_line()
 		if gui:button("insert") or gui.was_key_pressed["i"] then
-			insert_bone_keyframe(edit.frame)
+			model:insert_keyframe(edit.frame)
 		end
 		gui:same_line()
 		if gui:button("copy") then
-			copy_bone_keyframe(edit.frame)
+			model:copy_keyframe(edit.frame)
 		end
 		gui:same_line()
 		if gui:button("paste") then
-			paste_bone_keyframe(edit.frame)
+			model:paste_keyframe(edit.frame)
 		end
 		gui:same_line()
 		local alt = love.keyboard.isDown("lalt", "ralt")
 		if gui:button("delete")
 		or (gui.was_key_pressed["i"] and alt) then
-			delete_bone_keyframe(edit.frame)
+			model:delete_keyframe(edit.frame)
 		end
 	end
 
@@ -567,7 +572,7 @@ function love.draw()
 
 
 	-- mesh
-	for_all_bones(function(b)
+	model:for_all_bones(function(b)
 		G.push()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
@@ -583,7 +588,7 @@ function love.draw()
 	end)
 	-- bone
 	if edit.show_bones then
-		for_all_bones(function(b)
+		model:for_all_bones(function(b)
 			if b.parent then
 				local dx = b.global_x - b.parent.global_x
 				local dy = b.global_y - b.parent.global_y
@@ -603,7 +608,7 @@ function love.draw()
 
 	-- joint
 	if edit.show_joints then
-		for_all_bones(function(b)
+		model:for_all_bones(function(b)
 			if b == edit.selected_bone then
 				G.setColor(255, 255, 0, 150)
 				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
