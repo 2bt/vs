@@ -10,9 +10,23 @@ function new_bone(x, y, ang, poly)
 	return b
 end
 
+
 function add_bone(p, k)
 	table.insert(p.kids, k)
 	k.parent = p
+end
+
+
+function delete_bone(b)
+	if not b.parent then return b end
+	local p = b.parent
+	for i, k in ipairs(p.kids) do
+		if k == b then
+			table.remove(p.kids, i)
+			break
+		end
+	end
+	return p
 end
 
 
@@ -33,12 +47,15 @@ function update_bone(b)
 end
 
 
-local root_bone = new_bone()
-selected_bone   = root_bone
---add_bone(root_bone, new_bone(200, 0, 0))
---add_bone(root_bone.kids[1], new_bone(-30, 100, 0))
---add_bone(root_bone.kids[1].kids[1], new_bone(70, 0, 0))
-update_bone(root_bone)
+local root_bone
+function init_bone()
+	root_bone = new_bone()
+	--add_bone(root_bone, new_bone(200, 0, 0))
+	--add_bone(root_bone.kids[1], new_bone(-30, 100, 0))
+	--add_bone(root_bone.kids[1].kids[1], new_bone(70, 0, 0))
+	update_bone(root_bone)
+	return root_bone
+end
 
 
 function for_all_bones(func)
@@ -170,9 +187,8 @@ function load_bones(name)
 		return b
 	end
 	root_bone = load(data)
-	selected_bone = root_bone
 	update_bone(root_bone)
-	print("bones loaded")
+	return root_bone
 end
 
 
@@ -195,5 +211,4 @@ function save_bones(name)
 	local file = io.open(name, "w")
 	file:write(table.tostring(data) .. "\n")
 	file:close()
-	print("bones saved")
 end

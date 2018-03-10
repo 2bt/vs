@@ -23,6 +23,7 @@ edit = {
 	ik_length         = 2,
 	poly              = {},
 	selected_vertices = {},
+	selected_bone     = init_bone(),
 }
 function edit:set_frame(f)
 	if self.mode == "mesh" then self:toggle_mode() end
@@ -46,7 +47,7 @@ function edit:toggle_mode()
 		set_bone_frame(self.frame)
 
 		-- transform poly into world space
-		local b = selected_bone
+		local b = self.selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
 		self.poly = {}
@@ -58,7 +59,7 @@ function edit:toggle_mode()
 	elseif self.mode == "bone" then
 
 		-- transform poly back into bone space
-		local b = selected_bone
+		local b = self.selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
 		b.poly = {}
@@ -89,16 +90,7 @@ function love.keypressed(k)
 
 	if k == "x" and edit.mode == "bone" then
 		-- delete bone
-		if selected_bone.parent then
-			local p = selected_bone.parent
-			for i, k in ipairs(p.kids) do
-				if k == selected_bone then
-					table.remove(p.kids, i)
-					break
-				end
-			end
-			selected_bone = p
-		end
+		edit.selected_bone = delete_bone(edit.selected_bone)
 
 	elseif k == "x" and edit.mode == "mesh" then
 		-- delete selected vertice
@@ -130,22 +122,22 @@ function love.mousepressed(x, y, button)
 				math.abs(b.global_x - edit.mx),
 				math.abs(b.global_y - edit.my))
 			if d < 10 then
-				selected_bone = b
+				edit.selected_bone = b
 				return true
 			end
 		end)
 
 	elseif edit.mode == "bone" and button == 1 and love.keyboard.isDown("c") then
 		-- add new bone
-		local b = selected_bone
+		local b = edit.selected_bone
 		local si = math.sin(b.global_ang)
 		local co = math.cos(b.global_ang)
 		local dx = edit.mx - b.global_x
 		local dy = edit.my - b.global_y
 		local k = new_bone(dx * co + dy * si, dy * co - dx * si)
 		add_bone(b, k)
-		selected_bone = k
 		update_bone(k)
+		edit.selected_bone = k
 
 
 	elseif edit.mode == "mesh" and button == 1 and love.keyboard.isDown("c") then
@@ -248,7 +240,7 @@ function love.mousemoved(x, y, dx, dy)
 
 	if edit.mode == "bone" then
 		local function move(dx, dy)
-			local b = selected_bone
+			local b = edit.selected_bone
 			local si = math.sin(b.global_ang - b.ang)
 			local co = math.cos(b.global_ang - b.ang)
 			b.x = b.x + dx * co + dy * si
@@ -263,7 +255,7 @@ function love.mousemoved(x, y, dx, dy)
 
 		elseif love.keyboard.isDown("r") then
 			-- rotate
-			local b = selected_bone
+			local b = edit.selected_bone
 			local bx = edit.mx - b.global_x
 			local by = edit.my - b.global_y
 			local a = math.atan2(bx - dx, by - dy) - math.atan2(bx, by)
@@ -274,17 +266,17 @@ function love.mousemoved(x, y, dx, dy)
 
 		elseif love.mouse.isDown(1) then
 			-- ik
-			if not selected_bone.parent then
+			if not edit.selected_bone.parent then
 				move(dx, dy)
 				return
 			end
 
-			local tx = selected_bone.global_x + dx
-			local ty = selected_bone.global_y + dy
+			local tx = edit.selected_bone.global_x + dx
+			local ty = edit.selected_bone.global_y + dy
 
 			local function calc_error()
-				local dx = selected_bone.global_x - tx
-				local dy = selected_bone.global_y - ty
+				local dx = edit.selected_bone.global_x - tx
+				local dy = edit.selected_bone.global_y - ty
 				return (dx * dx + dy * dy) ^ 0.5
 			end
 
@@ -292,7 +284,7 @@ function love.mousemoved(x, y, dx, dy)
 				local delta = 0.0005
 
 				local improve = false
-				local b = selected_bone
+				local b = edit.selected_bone
 				for _ = 1, edit.ik_length do
 					b = b.parent
 					if not b then break end
@@ -417,7 +409,7 @@ function do_gui()
 		gui:checkbox("bones", edit, "show_bones")
 		gui:separator()
 
-		local b = selected_bone
+		local b = edit.selected_bone
 		gui:text("x: %.2f", b.x)
 		gui:text("y: %.2f", b.y)
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
@@ -431,13 +423,15 @@ function do_gui()
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			load_bones("save")
+			edit.selected_bone = load_bones("save")
+			print("bones loaded")
 		end
 		gui:same_line()
 		if gui:button("save")
 		or (gui.was_key_pressed["s"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
 			save_bones("save")
+			print("bones saved")
 		end
 	end
 
@@ -578,7 +572,7 @@ function love.draw()
 		G.translate(b.global_x, b.global_y)
 		G.rotate(b.global_ang)
 		if #b.poly >= 3 then
-			if b ~= selected_bone or edit.mode ~= "mesh" then
+			if b ~= edit.selected_bone or edit.mode ~= "mesh" then
 				G.setColor(140, 90, 50)
 				draw_concav_poly(b.poly)
 				G.setColor(110, 60, 20)
@@ -610,7 +604,7 @@ function love.draw()
 	-- joint
 	if edit.show_joints then
 		for_all_bones(function(b)
-			if b == selected_bone then
+			if b == edit.selected_bone then
 				G.setColor(255, 255, 0, 150)
 				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 			end
