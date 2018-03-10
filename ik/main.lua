@@ -6,6 +6,15 @@ G = love.graphics
 love.keyboard.setKeyRepeat(true)
 
 model = Model()
+model.anims = {
+	{
+		start_frame = 10,
+		end_frame = 20,
+		loop = true,
+		speed = 0.1,
+	}
+}
+
 cam = {
 	x    = 0,
 	y    = 0,
@@ -13,7 +22,7 @@ cam = {
 }
 edit = {
 	is_playing        = false,
-	play_speed        = 0.2,
+	play_speed        = 0.5,
 	frame             = 0,
 
 	show_grid         = true,
@@ -30,6 +39,27 @@ function edit:set_frame(f)
 	if self.mode == "mesh" then self:toggle_mode() end
 	self.frame = math.max(0, f)
 	model:set_frame(self.frame)
+
+	self.current_anim = nil
+	for _, a in ipairs(model.anims) do
+		if self.frame >= a.start_frame
+		and self.frame < a.end_frame then
+			self.current_anim = a
+			break
+		end
+	end
+
+end
+function edit:update_frame()
+	if not self.is_playing then return end
+	local f = self.frame + self.play_speed
+	if self.current_anim then
+		f = self.frame + self.current_anim.speed
+		if f >= self.current_anim.end_frame then
+			f = self.current_anim.start_frame + f - self.current_anim.end_frame
+		end
+	end
+	self:set_frame(f)
 end
 function edit:set_playing(p)
 	self.is_playing = p
@@ -375,10 +405,9 @@ function love.mousemoved(x, y, dx, dy)
 end
 
 
+
 function love.update()
-	if edit.is_playing then
-		edit:set_frame(edit.frame + edit.play_speed)
-	end
+	edit:update_frame()
 end
 
 
@@ -456,8 +485,6 @@ function do_gui()
 		or gui.was_key_pressed["escape"] then
 			love.event.quit()
 		end
-
-
 	end
 
 	do
@@ -469,7 +496,11 @@ function do_gui()
 
 		-- change frame
 		if gui.was_key_pressed["backspace"] then
-			edit:set_frame(0)
+			if edit.current_anim then
+				edit:set_frame(edit.current_anim.start_frame)
+			else
+				edit:set_frame(0)
+			end
 		end
 		local dx = (gui.was_key_pressed["right"] and 1 or 0)
 				- (gui.was_key_pressed["left"] and 1 or 0)
@@ -499,6 +530,14 @@ function do_gui()
 		G.setColor(0, 255, 0)
 		local x = 5 + edit.frame * 10
 		G.line(x, 0, x, 45)
+
+		-- animations
+		G.setColor(0, 255, 0, 150)
+		for _, a in ipairs(model.anims) do
+			local x1 = 5 + a.start_frame * 10
+			local x2 = 5 + a.end_frame * 10
+			G.rectangle("fill", x1, 5, x2 - x1, 10)
+		end
 
 		-- lines
 		local i = 0
