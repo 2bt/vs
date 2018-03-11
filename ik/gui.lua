@@ -36,7 +36,19 @@ end
 function gui:select_win(nr)
 	self.current_window = self.windows[nr]
 end
-function gui:get_new_item_box(w, h, pad)
+function gui:item_min_size(w, h)
+	self.iw = w
+	self.ih = h
+end
+function gui:item_box(w, h, pad)
+	if self.iw then
+		w = math.max(w, self.iw)
+		self.iw = nil
+	end
+	if self.ih then
+		w = math.max(w, self.ih)
+		self.ih = nil
+	end
 	pad = pad or PADDING
 	local win = self.current_window
 	local box = {}
@@ -77,7 +89,12 @@ end
 function gui:begin_frame()
 
 	-- input
+	local ox, oy = self.mx, self.my
 	self.mx, self.my = love.mouse.getPosition()
+	if ox then
+		self.dx = self.mx - ox
+		self.dy = self.my - oy
+	end
 	local p = self.is_mouse_down
 	self.is_mouse_down = love.mouse.isDown(1)
 	self.was_mouse_cliked = self.is_mouse_down and not p
@@ -164,25 +181,26 @@ function gui:separator()
 	local win = self.current_window
 	G.setColor(100, 100, 100, 100)
 	if win.same_line then
-		local box = self:get_new_item_box(4, win.max_cy - win.min_cy - PADDING)
+		local box = self:item_box(4, win.max_cy - win.min_cy - PADDING)
 		G.rectangle("fill", box.x, box.y - PADDING, box.w, box.h + PADDING * 2)
 		win.same_line = true
 	else
 		local c = win.columns[#win.columns]
-		local box = self:get_new_item_box(c.max_x - c.min_x - PADDING, 4)
+		local box = self:item_box(c.max_x - c.min_x - PADDING, 4)
 		G.rectangle("fill", box.x - PADDING, box.y, box.w + PADDING * 2, box.h)
 	end
 end
 function gui:text(fmt, ...)
 	local str = fmt:format(...)
 	local w = G.getFont():getWidth(str)
-	local box = self:get_new_item_box(w, 14)
+	local box = self:item_box(w, 14)
 	G.setColor(255, 255, 255)
 	G.print(str, box.x, box.y + box.h / 2 - 7)
 end
 function gui:button(label)
-	local w = G.getFont():getWidth(label)
-	local box = self:get_new_item_box(w + 10, 20)
+	local w = G.getFont():getWidth(label) + 10
+	w = math.max(w, 50)
+	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
@@ -207,8 +225,8 @@ function gui:button(label)
 	return hover and self.was_mouse_cliked
 end
 function gui:checkbox(label, t, n)
-	local w = G.getFont():getWidth(label)
-	local box = self:get_new_item_box(20 + PADDING + w, 20)
+	local w = G.getFont():getWidth(label) + 20 + PADDING
+	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
@@ -239,8 +257,9 @@ function gui:checkbox(label, t, n)
 	return hover and self.was_mouse_cliked
 end
 function gui:radio_button(label, v, t)
-	local w = G.getFont():getWidth(label)
-	local box = self:get_new_item_box(w + 10, 20)
+	local w = G.getFont():getWidth(label) + 10
+	w = math.max(w, 50)
+	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
@@ -264,4 +283,39 @@ function gui:radio_button(label, v, t)
 	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.was_mouse_cliked
+end
+function gui:drag_value(label, t, n, step, min, max, fmt)
+	local v = t[n]
+	local text = label .. " " .. fmt:format(v)
+	local w = G.getFont():getWidth(text) + 10
+	local box = self:item_box(w, 20)
+
+	local hover = self:mouse_in_box(box)
+	if hover then
+		self.hover_item = label
+		if self.was_mouse_cliked then
+			self.active_item = label
+		end
+	end
+
+	if label == self.active_item then
+		t[n] = clamp(v + step * self.dx, min, max)
+		G.setColor(150, 100, 100, 100)
+	elseif hover then
+		G.setColor(150, 100, 100, 100)
+	else
+		G.setColor(100, 100, 100, 100)
+	end
+	G.rectangle("fill", box.x, box.y, box.w, box.h)
+
+	local h = math.max(4, box.w / ((max - min) / step + 1))
+	local x = (v - min) / (max - min) * (box.w - h)
+
+	G.setColor(200, 100, 100, 200)
+	G.rectangle("fill", box.x + x, box.y, h, box.h)
+
+	G.setColor(255, 255, 255)
+	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
+
+	return v ~= t[n]
 end

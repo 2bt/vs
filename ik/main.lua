@@ -22,7 +22,7 @@ cam = {
 }
 edit = {
 	is_playing        = false,
-	play_speed        = 0.5,
+	speed             = 0.5,
 	frame             = 0,
 
 	show_grid         = true,
@@ -52,7 +52,7 @@ function edit:set_frame(f)
 end
 function edit:update_frame()
 	if not self.is_playing then return end
-	local f = self.frame + self.play_speed
+	local f = self.frame + self.speed
 	if self.current_anim then
 		f = self.frame + self.current_anim.speed
 		if f >= self.current_anim.end_frame then
@@ -440,18 +440,18 @@ function do_gui()
 		gui:checkbox("bones", edit, "show_bones")
 		gui:separator()
 
+		if gui:button("front") then
+			model:change_bone_layer(edit.selected_bone, 1)
+		end
+		gui:same_line()
+		if gui:button("back") then
+			model:change_bone_layer(edit.selected_bone, -1)
+		end
+
 		local b = edit.selected_bone
 		gui:text("x: %.2f", b.x)
 		gui:text("y: %.2f", b.y)
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
-
-		if gui:button("to front") then
-			model:change_bone_layer(edit.selected_bone, 1)
-		end
-		if gui:button("to back") then
-			model:change_bone_layer(edit.selected_bone, -1)
-		end
-
 	end
 
 	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
@@ -492,7 +492,7 @@ function do_gui()
 
 		-- timeline
 		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
-		local box = gui:get_new_item_box(w, 45)
+		local box = gui:item_box(w, 45)
 
 		-- change frame
 		if gui.was_key_pressed["backspace"] then
@@ -575,8 +575,6 @@ function do_gui()
 
 
 		-- keyframe buttons
-		gui:get_new_item_box(0, 25, 0)
-		gui:same_line()
 		gui:text("keyframe:")
 		gui:same_line()
 		if gui:button("insert") or gui.was_key_pressed["i"] then
@@ -596,6 +594,17 @@ function do_gui()
 		or (gui.was_key_pressed["i"] and alt) then
 			model:delete_keyframe(edit.frame)
 		end
+
+
+		-- animation
+		local t = edit.current_anim or edit
+		gui:same_line()
+		gui:separator()
+		gui:text("animation:")
+		gui:same_line()
+		gui:item_min_size(100, nil)
+		gui:drag_value("speed", t, "speed", 0.01, 0.1, 1, "%.2f")
+
 	end
 
 	gui:end_frame()

@@ -45,3 +45,8 @@ function table.tostring(t)
 	w(t)
 	return table.concat(buf)
 end
+
+
+function clamp(v, min, max)
+	return math.max(min, math.min(max, v))
+end
