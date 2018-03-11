@@ -107,6 +107,7 @@ end
 
 
 function love.wheelmoved(_, y)
+	if gui:wheelmoved(y) then return end
 	cam.zoom = cam.zoom * (0.9 ^ y)
 end
 
@@ -438,6 +439,10 @@ function do_gui()
 		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("joints", edit, "show_joints")
 		gui:checkbox("bones", edit, "show_bones")
+
+		gui:item_min_size(105, 0)
+		gui:drag_value("IK chain", edit, "ik_length", 1, 2, 5, "%d")
+
 		gui:separator()
 
 		if gui:button("front") then
@@ -508,7 +513,7 @@ function do_gui()
 			if shift then dx = dx * 10 end
 			edit:set_frame(edit.frame + dx)
 		end
-		if gui:mouse_in_box(box) and gui.is_mouse_down then
+		if not gui.active_item and gui:mouse_in_box(box) and gui.is_mouse_down then
 			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
 		end
 
@@ -573,6 +578,12 @@ function do_gui()
 		end
 		gui:separator()
 
+		-- animation
+		local t = edit.current_anim or edit
+		gui:item_min_size(300, 0)
+		gui:drag_value("animation speed", t, "speed", 0.01, 0.1, 1, "%.2f")
+		gui:same_line()
+		gui:separator()
 
 		-- keyframe buttons
 		gui:text("keyframe:")
@@ -595,15 +606,6 @@ function do_gui()
 			model:delete_keyframe(edit.frame)
 		end
 
-
-		-- animation
-		local t = edit.current_anim or edit
-		gui:same_line()
-		gui:separator()
-		gui:text("animation:")
-		gui:same_line()
-		gui:item_min_size(100, nil)
-		gui:drag_value("speed", t, "speed", 0.01, 0.1, 1, "%.2f")
 
 	end
 

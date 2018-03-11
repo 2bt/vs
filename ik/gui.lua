@@ -1,10 +1,18 @@
 local PADDING = 5
 
 gui = {
-	was_key_pressed = {},
-	hover_item      = nil,
-	active_item     = nil,
-	windows         = { {}, {}, {} },
+	mx               = 0,
+	my               = 0,
+	iw               = 0,
+	ih               = 0,
+
+	wheel            = 0,
+	is_mouse_down    = false,
+	was_mouse_cliked = false,
+	was_key_pressed  = {},
+	hover_item       = nil,
+	active_item      = nil,
+	windows          = { {}, {}, {} },
 }
 for _, win in ipairs(gui.windows) do
 	win.columns = {
@@ -17,10 +25,7 @@ for _, win in ipairs(gui.windows) do
 	}
 end
 
-function gui:keypressed(k)
-	self.was_key_pressed[k] = true
-end
-function gui:mousemoved(x, y, dx, dy)
+function gui:has_focus()
 	for _, win in ipairs(self.windows) do
 		local c = win.columns[#win.columns]
 		local box = {
@@ -33,6 +38,18 @@ function gui:mousemoved(x, y, dx, dy)
 	end
 	return self.active_item ~= nil
 end
+function gui:keypressed(k)
+	self.was_key_pressed[k] = true
+end
+function gui:wheelmoved(y)
+	self.wheel = y
+	return self:has_focus()
+end
+function gui:mousemoved(x, y, dx, dy)
+	self.mx = x
+	self.my = y
+	return self:has_focus()
+end
 function gui:select_win(nr)
 	self.current_window = self.windows[nr]
 end
@@ -41,14 +58,11 @@ function gui:item_min_size(w, h)
 	self.ih = h
 end
 function gui:item_box(w, h, pad)
-	if self.iw then
-		w = math.max(w, self.iw)
-		self.iw = nil
-	end
-	if self.ih then
-		w = math.max(w, self.ih)
-		self.ih = nil
-	end
+	w = math.max(w, self.iw)
+	h = math.max(h, self.ih)
+	self.iw = 0
+	self.ih = 0
+
 	pad = pad or PADDING
 	local win = self.current_window
 	local box = {}
@@ -89,12 +103,6 @@ end
 function gui:begin_frame()
 
 	-- input
-	local ox, oy = self.mx, self.my
-	self.mx, self.my = love.mouse.getPosition()
-	if ox then
-		self.dx = self.mx - ox
-		self.dy = self.my - oy
-	end
 	local p = self.is_mouse_down
 	self.is_mouse_down = love.mouse.isDown(1)
 	self.was_mouse_cliked = self.is_mouse_down and not p
@@ -147,6 +155,7 @@ function gui:begin_frame()
 end
 function gui:end_frame()
 	self.was_key_pressed = {}
+	self.wheel = 0
 end
 function gui:begin_column()
 	local win = self.current_window
@@ -298,21 +307,25 @@ function gui:drag_value(label, t, n, step, min, max, fmt)
 		end
 	end
 
+	local handle_w = math.max(4, box.w / (1 + (max - min) / step))
+	local handle_x = (v - min) / (max - min) * (box.w - handle_w)
+
 	if label == self.active_item then
-		t[n] = clamp(v + step * self.dx, min, max)
+		local x = (self.mx - box.x - handle_w * 0.5) / (box.w - handle_w)
+		x = min + math.floor(x * (max - min) / step + 0.5) * step
+		t[n] = clamp(x, min, max)
 		G.setColor(150, 100, 100, 100)
 	elseif hover then
+		t[n] = clamp(v + step * self.wheel, min, max)
 		G.setColor(150, 100, 100, 100)
 	else
 		G.setColor(100, 100, 100, 100)
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h)
 
-	local h = math.max(4, box.w / ((max - min) / step + 1))
-	local x = (v - min) / (max - min) * (box.w - h)
 
 	G.setColor(200, 100, 100, 200)
-	G.rectangle("fill", box.x + x, box.y, h, box.h)
+	G.rectangle("fill", box.x + handle_x, box.y, handle_w, box.h)
 
 	G.setColor(255, 255, 255)
 	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
