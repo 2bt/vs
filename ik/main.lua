@@ -8,9 +8,9 @@ love.keyboard.setKeyRepeat(true)
 model = Model()
 model.anims = {
 	{
-		start_frame = 10,
-		end_frame = 20,
-		loop = true,
+		start = 10,
+		stop  = 20,
+		loop  = true,
 		speed = 0.1,
 	}
 }
@@ -42,8 +42,8 @@ function edit:set_frame(f)
 
 	self.current_anim = nil
 	for _, a in ipairs(model.anims) do
-		if self.frame >= a.start_frame
-		and self.frame < a.end_frame then
+		if self.frame >= a.start
+		and self.frame < a.stop then
 			self.current_anim = a
 			break
 		end
@@ -55,8 +55,8 @@ function edit:update_frame()
 	local f = self.frame + self.speed
 	if self.current_anim then
 		f = self.frame + self.current_anim.speed
-		if f >= self.current_anim.end_frame then
-			f = self.current_anim.start_frame + f - self.current_anim.end_frame
+		if f >= self.current_anim.stop then
+			f = self.current_anim.start + f - self.current_anim.stop
 		end
 	end
 	self:set_frame(f)
@@ -502,7 +502,7 @@ function do_gui()
 		-- change frame
 		if gui.was_key_pressed["backspace"] then
 			if edit.current_anim then
-				edit:set_frame(edit.current_anim.start_frame)
+				edit:set_frame(edit.current_anim.start)
 			else
 				edit:set_frame(0)
 			end
@@ -539,8 +539,8 @@ function do_gui()
 		-- animations
 		G.setColor(0, 255, 0, 150)
 		for _, a in ipairs(model.anims) do
-			local x1 = 5 + a.start_frame * 10
-			local x2 = 5 + a.end_frame * 10
+			local x1 = 5 + a.start * 10
+			local x2 = 5 + a.stop * 10
 			G.rectangle("fill", x1, 5, x2 - x1, 10)
 		end
 
