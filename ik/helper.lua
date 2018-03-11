@@ -33,6 +33,7 @@ function table.tostring(t)
 					buf[#buf+1] = ","
 				end
 			end
+			if buf[#buf] == "," then buf[#buf] = nil end
 			buf[#buf+1] = "}"
 		elseif t == "string" then
 			buf[#buf+1] = ("%q"):format(o)

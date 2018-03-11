@@ -6,14 +6,15 @@ G = love.graphics
 love.keyboard.setKeyRepeat(true)
 
 model = Model()
-model.anims = {
-	{
-		start = 10,
-		stop  = 20,
-		loop  = true,
-		speed = 0.1,
-	}
-}
+--model:load("save")
+--model.anims = {
+--	{
+--		start = 10,
+--		stop  = 20,
+--		loop  = true,
+--		speed = 0.1,
+--	}
+--}
 
 cam = {
 	x    = 0,
@@ -56,7 +57,12 @@ function edit:update_frame()
 	if self.current_anim then
 		f = self.frame + self.current_anim.speed
 		if f >= self.current_anim.stop then
-			f = self.current_anim.start + f - self.current_anim.stop
+			if self.current_anim.loop then
+				f = self.current_anim.start + f - self.current_anim.stop
+			else
+				f = self.current_anim.start
+				self.is_playing = false
+			end
 		end
 	end
 	self:set_frame(f)

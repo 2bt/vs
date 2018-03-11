@@ -42,6 +42,7 @@ function Model:init()
 	self.root = Bone()
 	self.root:update()
 	self.bones = { self.root }
+	self.anims = {}
 end
 function Model:add_bone(b)
 	self.bones[#self.bones + 1] = b
@@ -64,6 +65,9 @@ function Model:delete_bone(b)
 	for i, p in ipairs(self.bones) do
 		if p == b then
 			table.remove(self.bones, i)
+			for _, k in ipairs(b.kids) do
+				self:delete_bone(k)
+			end
 			break
 		end
 	end
@@ -105,14 +109,15 @@ function Model:load(name)
 	local str = file:read("*a")
 	file:close()
 	local data = loadstring("return " .. str)()
+	self.anims = data.anims
 	self.bones = {}
-	for _, d in ipairs(data) do
+	for _, d in ipairs(data.bones) do
 		local b = Bone(d.x, d.y, d.ang)
 		b.poly      = d.poly
 		b.keyframes = d.keyframes
 		table.insert(self.bones, b)
 	end
-	for i, d in ipairs(data) do
+	for i, d in ipairs(data.bones) do
 		local b = self.bones[i]
 		if d.parent then
 			self.bones[d.parent]:add_kid(b)
@@ -125,7 +130,10 @@ end
 function Model:save(name)
 	local order = {}
 	for i, b in ipairs(self.bones) do order[b] = i end
-	local data = {}
+	local data = {
+		bones = {},
+		anims = self.anims,
+	}
 	for _, b in ipairs(self.bones) do
 		local d = {
 			x         = b.x,
@@ -135,7 +143,7 @@ function Model:save(name)
 			keyframes = b.keyframes,
 			parent    = order[b.parent]
 		}
-		table.insert(data, d)
+		table.insert(data.bones, d)
 	end
 	local file = io.open(name, "w")
 	file:write(table.tostring(data) .. "\n")
