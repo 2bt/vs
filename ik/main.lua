@@ -26,6 +26,7 @@ edit = {
 	speed             = 0.5,
 	frame             = 0,
 
+	show_fill         = true,
 	show_grid         = true,
 	show_bones        = true,
 	show_joints       = true,
@@ -442,6 +443,7 @@ function do_gui()
 			edit.show_bones  = v
 		end
 
+		gui:checkbox("fill", edit, "show_fill")
 		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("joints", edit, "show_joints")
 		gui:checkbox("bones", edit, "show_bones")
@@ -671,8 +673,10 @@ function love.draw()
 				G.translate(b.global_x, b.global_y)
 				G.rotate(b.global_ang)
 				G.setColor(120, 80, 80)
-				draw_concav_poly(b.poly)
-				G.setColor(100, 60, 60)
+				if edit.show_fill then
+					draw_concav_poly(b.poly)
+					G.setColor(100, 60, 60)
+				end
 				G.polygon("line", b.poly)
 				G.pop()
 			end
