@@ -463,6 +463,8 @@ function do_gui()
 		gui:text("x: %.2f", b.x)
 		gui:text("y: %.2f", b.y)
 		gui:text("a: %.2f°", b.ang * 180 / math.pi)
+		gui:text("gx: %.2f", b.global_x)
+		gui:text("gy: %.2f", b.global_y)
 	end
 
 	local ctrl = love.keyboard.isDown("lctrl", "rctrl")
@@ -641,6 +643,23 @@ function love.draw()
 			for y = -1000, 1000, 100 do
 				G.line(-1000, y, 1000, y)
 			end
+
+			-- fine grid
+			if cam.zoom < 1 then
+				local d = 10
+				local x1 = math.floor((cam.x - cam.zoom * G.getWidth() / 2) / d) * d
+				local y1 = math.floor((cam.y - cam.zoom * G.getHeight() / 2) / d) * d
+				local x2 = cam.x + cam.zoom * G.getWidth() / 2
+				local y2 = cam.y + cam.zoom * G.getHeight() / 2
+
+				for x = x1, x2, d do
+					G.line(x, y1, x, y2)
+				end
+				for y = y1, y2, d do
+					G.line(x1, y, x2, y)
+				end
+			end
+
 		end
 	end
 
