@@ -453,13 +453,37 @@ function do_gui()
 
 		gui:separator()
 
-		if gui:button("front") then
+		gui:item_min_size(105, 0)
+		if gui:button("move to front") then
 			model:change_bone_layer(edit.selected_bone, 1)
 		end
-		gui:same_line()
-		if gui:button("back") then
+		gui:item_min_size(105, 0)
+		if gui:button("move to back") then
 			model:change_bone_layer(edit.selected_bone, -1)
 		end
+
+
+		-- helper stuff
+		if true then
+			gui:item_min_size(105, 0)
+			if gui:button("copy bone pos")
+			or gui.was_key_pressed["q"] then
+				qqq = {
+					edit.selected_bone.x,
+					edit.selected_bone.y,
+				}
+			end
+			gui:item_min_size(105, 0)
+			if gui:button("paste bone pos")
+			or gui.was_key_pressed["w"] then
+				if qqq then
+					edit.selected_bone.x = qqq[1]
+					edit.selected_bone.y = qqq[2]
+					edit.selected_bone:update()
+				end
+			end
+		end
+
 
 		local b = edit.selected_bone
 		gui:text("x: %.2f", b.x)
