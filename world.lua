@@ -620,15 +620,19 @@ function ClientWorld:draw()
 				G.translate(p.x, p.y)
 				G.scale(0.11)
 				G.scale(p.dir, 1)
-				m:for_all_bones(function(b)
+				local c = { G.getColor() }
+				for i, b in ipairs(m.bones) do
 					if #b.poly >= 3 then
+
+						local l = i > 4 and 1 or 0.7
+						G.setColor(c[1] * l, c[2] * l, c[3] * l)
 						G.push()
 						G.translate(b.global_x, b.global_y)
 						G.rotate(b.global_ang)
 						G.polygon("fill", b.poly)
 						G.pop()
 					end
-				end)
+				end
 				G.pop()
 			end
 
