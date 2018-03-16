@@ -124,8 +124,8 @@ function Model:load(name)
 	self.bones = {}
 	for _, d in ipairs(data.bones) do
 		local b = Bone(d.x, d.y, d.ang)
-		b.poly      = d.poly
-		b.keyframes = d.keyframes
+		b.poly      = d.poly or {}
+		b.keyframes = d.keyframes or {}
 		table.insert(self.bones, b)
 	end
 	for i, d in ipairs(data.bones) do
@@ -151,10 +151,10 @@ function Model:save(name)
 			x         = b.x,
 			y         = b.y,
 			ang       = b.ang,
-			poly      = b.poly,
-			keyframes = b.keyframes,
 			parent    = order[b.parent]
 		}
+		if #b.poly > 0 then d.poly = b.poly end
+		if #b.keyframes > 0 then d.keyframes = b.keyframes end
 		table.insert(data.bones, d)
 	end
 	local file = io.open(name, "w")

@@ -10,6 +10,7 @@ end
 
 require("helper")
 require("world")
+require("clientworld")
 require("network")
 
 
