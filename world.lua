@@ -20,7 +20,7 @@ function World:init()
 			if t == "@" then
 				table.insert(self.spawning_points, {
 					x = x * TILE_SIZE + TILE_SIZE / 2,
-					y = y * TILE_SIZE + TILE_SIZE / 2,
+					y = y * TILE_SIZE + TILE_SIZE,
 				})
 			elseif t == "+" then
 				table.insert(self.items, {
@@ -98,6 +98,10 @@ function World:spawn_player(p)
 	p.jump_control = true
 	p.shoot_delay  = 0
 	p.health       = 100
+	update_player_box(p)
+end
+function update_player_box(p)
+	p.box = { x = p.x - 7, y = p.y - 20, w = 14, h = 20 }
 end
 function World:add_player(client)
 	local p = { client = client }
@@ -172,7 +176,7 @@ function World:update_player(p)
 			player = p,
 			ttl    = 30,
 			x      = p.x,
-			y      = p.y,
+			y      = p.y - 16,
 			dir    = p.dir,
 		})
     end
@@ -188,8 +192,8 @@ function World:update_player(p)
 
 	-- horizontal movement
 	p.x = p.x + p.vx
-	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-	local cx = self:collision(box, "x")
+	update_player_box(p)
+	local cx = self:collision(p.box, "x")
 	if cx ~= 0 then
 		p.x = p.x + cx
 		p.vx = 0
@@ -198,8 +202,8 @@ function World:update_player(p)
 	-- vertical movement
 	p.oy = p.y
 	p.y = p.y + vy
-	local box = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-	local cy = self:collision(box, "y", not fall_though and vy)
+	update_player_box(p)
+	local cy = self:collision(p.box, "y", not fall_though and vy)
 	if cy ~= 0 then
 		p.y = p.y + cy
 		p.vy = 0
@@ -228,7 +232,7 @@ function World:update_player(p)
 	for _, i in ipairs(self.items) do
 		if i.type == "+" then
 			if i.tick > 0 and p.health < 100
-			and collision(box, { x = i.x - 4, y = i.y - 4, w = 8, h = 8 }) ~= 0 then
+			and collision(p.box, { x = i.x - 4, y = i.y - 4, w = 8, h = 8 }) ~= 0 then
 				i.tick   = -1000
 				p.health = math.min(p.health + 50, 100)
 			end
@@ -236,7 +240,7 @@ function World:update_player(p)
 	end
 
 	-- lava
-	if World:collision(box, "death") == 1 then
+	if World:collision(p.box, "death") == 1 then
 		World:hit_player(p, 100)
 		p.score = p.score - 1
 	end
@@ -274,8 +278,7 @@ function World:update()
 		-- collision
 		for _, p in pairs(self.players) do
 			if b.player ~= p and p.health > 0 then
-				local box2 = { x = p.x - 7, y = p.y - 7, w = 14, h = 14 }
-				local cx = collision(box, box2, "x")
+				local cx = collision(box, p.box, "x")
 				if cx ~= 0 then
 					self.bullets[i] = nil
 
@@ -342,6 +345,8 @@ function World:get_player_state(client)
 end
 
 
+require("ik/model")
+
 local G = love.graphics
 ClientWorld = {}
 function ClientWorld:init()
@@ -351,6 +356,7 @@ function ClientWorld:init()
 	self.items      = {}
 	self.particles  = {}
 	self.event_tick = 0
+	self.player_model = Model("ik/save")
 end
 function ClientWorld:decode_state(state)
 	local n = state:gmatch("([^ ]+)")
@@ -597,24 +603,41 @@ function ClientWorld:draw()
 				-- name
 				G.setColor(255, 255, 255)
 				G.push()
-				G.translate(p.x, p.y - 22)
+				G.translate(p.x, p.y - 37)
 				G.scale(0.4)
 				G.printf(p.name, -100, 0, 200, "center")
 				G.pop()
 
 				G.setColor(255, 100, 100)
 			end
-			G.circle("fill", p.x, p.y, 8, 6)
 
-			-- weapon
-			G.setColor(200, 200, 200)
-			G.rectangle("fill", p.x - 5 + p.dir * 3, p.y  -1.5, 10, 3)
+			do
+				local m = self.player_model
+				local a = m.anims[1]
+				local f = a.start + (self.tick * 0.5) % (a.stop - a.start)
+				m:set_frame(f)
+				G.push()
+				G.translate(p.x, p.y)
+				G.scale(0.11)
+				G.scale(p.dir, 1)
+				m:for_all_bones(function(b)
+					if #b.poly >= 3 then
+						G.push()
+						G.translate(b.global_x, b.global_y)
+						G.rotate(b.global_ang)
+						G.polygon("fill", b.poly)
+						G.pop()
+					end
+				end)
+				G.pop()
+			end
+
 
 			-- health
 			G.setColor(255, 255, 255, 50)
-			G.rectangle("fill", p.x - 7, p.y - 13, 14, 2)
+			G.rectangle("fill", p.x - 7, p.y - 27, 14, 2)
 			G.setColor(0, 255, 0, 200)
-			G.rectangle("fill", p.x - 7, p.y - 13, 14 * p.health / 100, 2)
+			G.rectangle("fill", p.x - 7, p.y - 27, 14 * p.health / 100, 2)
 		end
 	end
 

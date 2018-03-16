@@ -38,7 +38,14 @@ local keyframe_buffer = {}
 
 
 Model = Object:new()
-function Model:init()
+function Model:init(file_name)
+	if file_name then
+		self:load(file_name)
+	else
+		self:reset()
+	end
+end
+function Model:reset()
 	self.root = Bone()
 	self.root:update()
 	self.bones = { self.root }
@@ -46,7 +53,7 @@ function Model:init()
 end
 function Model:add_bone(b)
 	self.bones[#self.bones + 1] = b
-	-- NOTE: kid bones are not added to table
+	-- NOTE: kid bones are not added automatically
 end
 function Model:change_bone_layer(b, d)
 	if d ~= 1 and d ~= -1 then return end
@@ -105,7 +112,11 @@ function Model:set_frame(frame)
 	self.root:update()
 end
 function Model:load(name)
+	self:reset()
 	local file = io.open(name)
+	if not file then
+		return false
+	end
 	local str = file:read("*a")
 	file:close()
 	local data = loadstring("return " .. str)()
@@ -126,6 +137,7 @@ function Model:load(name)
 		end
 	end
 	self.root:update()
+	return true
 end
 function Model:save(name)
 	local order = {}

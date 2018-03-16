@@ -502,7 +502,7 @@ function do_gui()
 		if gui:button("new")
 		or (gui.was_key_pressed["n"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			model = Model()
+			model:reset()
 			edit.selected_bone = model.root
 		end
 		gui:same_line()
