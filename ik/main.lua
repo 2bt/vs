@@ -22,6 +22,7 @@ cam = {
 	zoom = 1,
 }
 edit = {
+	file_name         = arg[2] or "save",
 	is_playing        = false,
 	speed             = 0.5,
 	frame             = 0,
@@ -464,25 +465,25 @@ function do_gui()
 
 
 		-- helper stuff
-		if true then
-			gui:item_min_size(105, 0)
-			if gui:button("copy bone pos")
-			or gui.was_key_pressed["q"] then
-				qqq = {
-					edit.selected_bone.x,
-					edit.selected_bone.y,
-				}
-			end
-			gui:item_min_size(105, 0)
-			if gui:button("paste bone pos")
-			or gui.was_key_pressed["w"] then
-				if qqq then
-					edit.selected_bone.x = qqq[1]
-					edit.selected_bone.y = qqq[2]
-					edit.selected_bone:update()
-				end
-			end
-		end
+--		if true then
+--			gui:item_min_size(105, 0)
+--			if gui:button("copy bone pos")
+--			or gui.was_key_pressed["q"] then
+--				qqq = {
+--					edit.selected_bone.x,
+--					edit.selected_bone.y,
+--				}
+--			end
+--			gui:item_min_size(105, 0)
+--			if gui:button("paste bone pos")
+--			or gui.was_key_pressed["w"] then
+--				if qqq then
+--					edit.selected_bone.x = qqq[1]
+--					edit.selected_bone.y = qqq[2]
+--					edit.selected_bone:update()
+--				end
+--			end
+--		end
 
 
 		local b = edit.selected_bone
@@ -508,15 +509,18 @@ function do_gui()
 		if gui:button("load")
 		or (gui.was_key_pressed["l"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			model:load("save")
+			if model:load(edit.file_name) then
+				print("model loaded")
+			else
+				print("error loading model")
+			end
 			edit.selected_bone = model.root
-			print("model loaded")
 		end
 		gui:same_line()
 		if gui:button("save")
 		or (gui.was_key_pressed["s"] and ctrl) then
 			if edit.mode == "mesh" then edit:toggle_mode() end
-			model:save("save")
+			model:save(edit.file_name)
 			print("model saved")
 		end
 		gui:same_line()
