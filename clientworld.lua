@@ -78,7 +78,7 @@ function ClientWorld:decode_state(state)
 		if p.old_health > 0 and p.health == 0 then
 			p.tick = 0
 			-- death
-			for i = 1, 40 do
+			for i = 1, 20 do
 				self:spawn_blood(p.x, p.y - 10)
 			end
 		end
@@ -171,8 +171,9 @@ function ClientWorld:update()
 
 		-- bleeding corpse
 		if p.health == 0 and p.tick < 50 then
-			for i = 1, 5 - p.tick / 10 do
-				self:spawn_blood(p.x, p.y - 10)
+			local l = p.tick / 50
+			for i = 1, (1 - l) * 5 do
+				self:spawn_blood(p.x, p.y - 10 * (1 - l))
 			end
 		end
 	end
@@ -195,7 +196,6 @@ function ClientWorld:update()
 		local vy = clamp(p.vy, -3, 3)
 
 		p.radius = p.radius * 0.99
-
 		local r = math.min(p.radius, p.ttl / 10)
 
 		-- horizontal movement
@@ -239,7 +239,13 @@ function ClientWorld:draw()
 		elseif p.type == "d" then
 			G.setColor(255 * p.shade, 0, 0)
 		end
-		G.circle("fill", p.x, p.y, math.min(p.radius * 1.1, p.ttl / 10))
+--		G.circle("fill", p.x, p.y, math.min(p.radius, p.ttl / 10))
+		G.push()
+		G.translate(p.x, p.y)
+		G.rotate(math.atan2(p.vy, p.vx))
+		G.scale(1 + ((p.vx * p.vx + p.vy * p.vy) ^ 0.5) * 0.5, 1)
+		G.circle("fill", 0, 0, math.min(p.radius, p.ttl / 10))
+		G.pop()
 	end
 
 

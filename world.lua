@@ -86,7 +86,28 @@ end
 
 
 function World:spawn_player(p)
-	local spawn = self.spawning_points[math.random(#self.spawning_points)]
+
+	-- choose good spawning point
+	local spawn
+	local dist
+	for i = 1, 3 do
+		local s = self.spawning_points[math.random(#self.spawning_points)]
+		local d
+		for _, q in pairs(self.players) do
+			if q ~= p and q.health > 0 then
+				local l = distance(s.x, s.y, q.x, q.y)
+				if not d or d > l then
+					d = l
+				end
+			end
+		end
+		if not dist or dist < d then
+			dist = d
+			spawn = s
+		end
+	end
+
+
 	p.tick         = 0
 	p.x            = spawn.x
 	p.y            = spawn.y
@@ -136,7 +157,7 @@ function World:update_player(p)
 
 	-- respawn
 	if p.health == 0 then
-		if input.jump and p.tick > 60 then
+		if input.jump and p.tick > 120 then
 			self:spawn_player(p)
 		end
 		return
