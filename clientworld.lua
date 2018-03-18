@@ -1,4 +1,4 @@
-require("ik/model")
+require("model")
 
 local G = love.graphics
 ClientWorld = {}
