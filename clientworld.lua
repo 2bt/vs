@@ -21,29 +21,79 @@ function ClientWorld:init()
 		end
 	end
 end
+function ClientWorld:spawn_blood(x, y)
+	local a = math.random() * 2 * math.pi
+	local s = math.random() * 3 + 1
+	local b = math.random() * 2 * math.pi
+	local t = math.random() * 15
+	table.insert(self.particles, {
+		type   = "d",
+		ttl    = math.random(40, 80),
+		x      = x + math.sin(b) * t,
+		y      = y + math.cos(b) * t,
+		vx     = math.sin(a) * s,
+		vy     = math.cos(a) * s - 1,
+		radius = 1 + math.random() * 3,
+		bounce = 0.2 + math.random() * 0.4,
+		fric   = 0.4 + math.random() * 0.4,
+		shade  = 0.6 + math.random() * 0.4,
+	})
+end
 function ClientWorld:decode_state(state)
+
 	local n = state:gmatch("([^ ]+)")
-
-	local nr = tonumber(n())
-
-	self.players = {}
-	self.bullets = {}
+	local player_id = tonumber(n())
 
 	-- players
+	local active_players = {}
 	while true do
-		local w = n()
-		if w == "#" then break end
-		table.insert(self.players, {
-			name   = w,
-			x      = tonumber(n()),
-			y      = tonumber(n()),
-			dir    = tonumber(n()),
-			health = tonumber(n()),
-			score  = tonumber(n()),
-		})
+		local id = n()
+		if id == "#" then break end
+		id = tonumber(id)
+		active_players[id] = true
+		if not self.players[id] then
+			self.players[id] = {
+				health = 100,
+				tick   = 0,
+			}
+		end
+		local p = self.players[id]
+		if id == player_id then
+			self.player = p
+		end
+
+		p.old_health = p.health
+
+		p.name   = n()
+		p.x      = tonumber(n())
+		p.y      = tonumber(n())
+		p.dir    = tonumber(n())
+		p.health = tonumber(n())
+		p.score  = tonumber(n())
+
+		if p.old_health == 0 and p.health > 0 then
+			-- TODO: particles
+		end
+		if p.old_health > 0 and p.health == 0 then
+			p.tick = 0
+			-- death
+			for i = 1, 40 do
+				self:spawn_blood(p.x, p.y - 10)
+			end
+
+		end
+	end
+	for id, p in pairs(self.players) do
+		if not active_players[id] then
+			self.players[id] = nil
+			print(("client: player %s disconnected"):format(p.name))
+			-- TODO: particles
+		end
 	end
 
+
 	-- bullets
+	self.bullets = {}
 	while true do
 		local w = n()
 		if w == "#" then break end
@@ -60,7 +110,7 @@ function ClientWorld:decode_state(state)
 		local s = item.state
 		item.state = item_states:sub(i, i) == "1"
 		if s and item.state ~= s then
-			-- TODO: spawn particles
+			-- TODO: particles
 		end
 	end
 
@@ -82,15 +132,13 @@ function ClientWorld:decode_state(state)
 		end
 	end
 	self.event_tick = event_tick
-
-	self.player = self.players[nr]
 end
 function ClientWorld:process_event(e)
 	if e[1] == "b" then
 		-- bullet particle
 		for i = 1, 7 do
 			local a = math.random() * 2 * math.pi
-			local s = math.random() * 4
+			local s = 1 + math.random() * 2
 			table.insert(self.particles, {
 				type   = "b",
 				ttl    = math.random(15, 35),
@@ -99,21 +147,7 @@ function ClientWorld:process_event(e)
 				vx     = math.sin(a) * s,
 				vy     = math.cos(a) * s - 1,
 				radius = 0.5 + math.random(),
-			})
-		end
-	elseif e[1] == "d" then
-		-- death particle
-		for i = 1, 40 do
-			local a = math.random() * 2 * math.pi
-			local s = math.random() * 4 + 2
-			table.insert(self.particles, {
-				type   = "d",
-				ttl    = math.random(40, 80),
-				x      = tonumber(e[2]),
-				y      = tonumber(e[3]),
-				vx     = math.sin(a) * s,
-				vy     = math.cos(a) * s - 2,
-				radius = 1 + math.random() * 3,
+				bounce = 0.3 + math.random() * 0.5,
 			})
 		end
 	end
@@ -121,16 +155,30 @@ end
 function ClientWorld:update()
 	self.tick = self.tick + 1
 
+	for _, p in pairs(self.players) do
+		p.tick = p.tick + 1
+
+		-- bleeding corpse
+		if p.health == 0 and p.tick < 50 then
+			for i = 1, 5 - p.tick / 10 do
+				self:spawn_blood(p.x, p.y - 10)
+			end
+		end
+	end
+
 	for i, p in pairs(self.particles) do
 		p.ttl = p.ttl - 1
 		if p.ttl < 0 then
 			self.particles[i] = nil
 		end
 
-		p.vx = p.vx * 0.95
-		p.vy = p.vy * 0.95
+		p.vx = p.vx * 0.97
+		p.vy = p.vy * 0.97
+
 		p.vy = p.vy + GRAVITY
 		local vy = clamp(p.vy, -3, 3)
+
+		p.radius = p.radius * 0.99
 
 		local r = math.min(p.radius, p.ttl / 10)
 
@@ -140,7 +188,8 @@ function ClientWorld:update()
 		local cx = World:collision(box, "x")
 		if cx ~= 0 then
 			p.x = p.x + cx
-			p.vx = p.vx * -0.9
+			p.vx = p.vx * -p.bounce
+			p.vy = p.vy * (p.fric or 1)
 		end
 
 		-- vertical movement
@@ -149,7 +198,8 @@ function ClientWorld:update()
 		local cy = World:collision(box, "y", vy)
 		if cy ~= 0 then
 			p.y = p.y + cy
-			p.vy = p.vy * -0.9
+			p.vy = p.vy * -p.bounce
+			p.vx = p.vx * (p.fric or 1)
 		end
 
 	end
@@ -171,7 +221,7 @@ function ClientWorld:draw()
 		if p.type == "b" then
 			G.setColor(255, 255, 100)
 		elseif p.type == "d" then
-			G.setColor(255, 0, 0)
+			G.setColor(255 * p.shade, 0, 0)
 		end
 		G.circle("fill", p.x, p.y, math.min(p.radius * 1.1, p.ttl / 10))
 	end
@@ -262,7 +312,7 @@ function ClientWorld:draw()
 
 
 	-- players
-	for nr, p in ipairs(self.players) do
+	for _, p in pairs(self.players) do
 		if p.health > 0 then
 
 			local color = { 100, 100, 255 }
@@ -278,31 +328,33 @@ function ClientWorld:draw()
 				G.pop()
 			end
 
-			do
-				local m = self.player_model
-				local a = m.anims[1]
-				local f = a.start + (self.tick * 0.5) % (a.stop - a.start)
-				m:set_frame(f)
-				G.push()
-				G.translate(p.x, p.y)
-				G.scale(0.08)
-				G.scale(p.dir, 1)
-
-				for i, b in ipairs(m.bones) do
-					if #b.polys > 0 then
-						G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
-						G.push()
-						G.translate(b.global_x, b.global_y)
-						G.rotate(b.global_ang)
-						for _, p in ipairs(b.polys) do
-							G.polygon("fill", p)
-						end
-						G.pop()
-					end
-				end
-				G.pop()
+			-- player got hit
+			if p.old_health > p.health then
+				color = { 255, 255, 255 }
 			end
 
+			local m = self.player_model
+			local a = m.anims[1]
+			local f = a.start + (self.tick * 0.5) % (a.stop - a.start)
+			m:set_frame(f)
+			G.push()
+			G.translate(p.x, p.y)
+			G.scale(0.08)
+			G.scale(p.dir, 1)
+
+			for i, b in ipairs(m.bones) do
+				if #b.polys > 0 then
+					G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
+					G.push()
+					G.translate(b.global_x, b.global_y)
+					G.rotate(b.global_ang)
+					for _, p in ipairs(b.polys) do
+						G.polygon("fill", p)
+					end
+					G.pop()
+				end
+			end
+			G.pop()
 
 			-- health
 			G.setColor(255, 255, 255, 50)
@@ -318,8 +370,12 @@ function ClientWorld:draw()
 
 	-- score
 	G.setColor(255, 255, 255)
-	table.sort(self.players, function(a, b) return a.score > b.score end)
-	for i, p in ipairs(self.players) do
+	local ps = {}
+	for _, p in pairs(self.players) do
+		ps[#ps + 1] = p
+	end
+	table.sort(ps, function(a, b) return a.score > b.score end)
+	for i, p in ipairs(ps) do
 		G.push()
 		G.translate(3, 1 + 6 * (i - 1))
 		G.scale(0.4)

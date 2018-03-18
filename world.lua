@@ -123,7 +123,6 @@ function World:hit_player(p, value)
 	-- player death
 	if p.health == 0 then
 		p.tick = 0
-		self:event({ "d", p.x, p.y })
 	end
 end
 function World:update_player(p)
@@ -201,8 +200,8 @@ function World:update_player(p)
 	-- collision with players
 	for _, q in pairs(self.players) do
 		if q ~= p and q.health > 0 then
-			if p.y + 14 > q.y and p.oy + 14 <= q.oy
-			and math.abs(p.x - q.x) < 8 then
+			if p.y + 22 > q.y and p.oy + 22 <= q.oy
+			and math.abs(p.x - q.x) < 12 then
 				-- jump on other player
 				p.vy = -4
 				q.vy = 2
@@ -311,15 +310,22 @@ function World:encode_state()
 	local state = {}
 
 	-- players
-	for nr, p in ipairs(self.players) do
-		p.nr = nr
-		state[#state + 1] = " " .. p.client.name .. " " .. p.x .. " " .. p.y .. " " .. p.dir .. " " .. p.health .. " " .. p.score
+	for _, p in ipairs(self.players) do
+		state[#state + 1] = " " .. p.client.id
+		state[#state + 1] = " " .. p.client.name
+		state[#state + 1] = " " .. p.x
+		state[#state + 1] = " " .. p.y
+		state[#state + 1] = " " .. p.dir
+		state[#state + 1] = " " .. p.health
+		state[#state + 1] = " " .. p.score
 	end
 	state[#state + 1] = " #"
 
 	-- bullets
 	for _, b in pairs(self.bullets) do
-		state[#state + 1] = " " .. b.x .. " " .. b.y .. " " .. b.dir
+		state[#state + 1] = " " .. b.x
+		state[#state + 1] = " " .. b.y
+		state[#state + 1] = " " .. b.dir
 	end
 	state[#state + 1] = " #"
 
@@ -332,12 +338,13 @@ function World:encode_state()
 
 	-- events
 	for _, e in ipairs(self.events) do
-		state[#state + 1] = " " .. e.tick .. " " .. table.concat(e, " ") .. " #"
+		state[#state + 1] = " " .. e.tick
+		state[#state + 1] = " " .. table.concat(e, " ") .. " #"
 	end
 	state[#state + 1] = " #"
 
 	self.state = table.concat(state)
 end
 function World:get_player_state(client)
-	return client.player.nr .. " " .. self.state
+	return client.id .. " " .. self.state
 end
