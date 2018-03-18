@@ -1,0 +1,6 @@
+# VS
+
+A love2d network multiplayer jump'n'shoot.
+Jump with `x`, shoot with `y`.
+Clients are super dumb.
+There is no latency compensation.

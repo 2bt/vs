@@ -243,13 +243,6 @@ function ClientWorld:draw_map(cam, layer)
 		lava_poly2[#lava_poly2 + 1] = math.sin(i / TILE_SIZE * 2 * math.pi - self.tick * 0.07) * 2
 	end
 
-	local function X(x, y)
-		return x + math.sin(x * 7777 + y * 9999) * 2
-	end
-	local function Y(x, y)
-		return y + math.sin(x * 5555 + y * 3333) * 2
-	end
-
 	local x1 = math.floor((cam.x - W / 2) / TILE_SIZE)
 	local x2 = math.floor((cam.x + W / 2) / TILE_SIZE)
 	local y1 = math.floor((cam.y - H / 2) / TILE_SIZE)
@@ -301,7 +294,14 @@ function ClientWorld:draw_map(cam, layer)
 			end
 		end
 
+
 		-- wiggly stones
+		local function X(x, y)
+			return x + math.sin(x * 7777 + y * 9999) * 2
+		end
+		local function Y(x, y)
+			return y + math.sin(x * 5555 + y * 3333) * 2
+		end
 		for y = y1, y2 do
 			for x = x1, x2 do
 				local t = World:tile_at(x, y)
