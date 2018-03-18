@@ -10,7 +10,7 @@ function ClientWorld:init()
 	self.event_tick  = 0
 	self.items       = World.items
 
-	self.player_model = Model("ik/turri")
+	self.player_model = Model("assets/turri.model")
 	for _, b in ipairs(self.player_model.bones) do
 		if #b.poly < 3 then
 			b.polys = {}
