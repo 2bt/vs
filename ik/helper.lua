@@ -19,6 +19,12 @@ function clamp(v, min, max)
 	return math.max(min, math.min(max, v))
 end
 
+function distance(ax, ay, bx, by)
+	local dx = bx - ax
+	local dy = by - ay
+	return (dx * dx + dy * dy) ^ 0.5
+end
+
 
 function table.tostring(t)
 	local buf = {}
@@ -64,4 +70,3 @@ function table.tostring(t)
 	w(t, "")
 	return table.concat(buf)
 end
-

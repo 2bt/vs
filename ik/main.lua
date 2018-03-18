@@ -157,13 +157,14 @@ end
 function love.mousepressed(x, y, button)
 	if edit.mode == "bone" and button == 2 then
 		-- select bone
+		local dist = 10
 		model:for_all_bones(function(b)
 			local d = math.max(
 				math.abs(b.global_x - edit.mx),
 				math.abs(b.global_y - edit.my)) / cam.zoom
-			if d < 10 then
+			if d < dist then
+				dist = d
 				edit.selected_bone = b
-				return true
 			end
 		end)
 
@@ -185,20 +186,14 @@ function love.mousepressed(x, y, button)
 		local index = 1
 		local min_l = nil
 		for i = 1, #edit.poly, 2 do
-
-			local dx1 = edit.mx - edit.poly[i]
-			local dy1 = edit.my - edit.poly[i + 1]
-			local dx2 = edit.mx - edit.poly[(i + 2) % #edit.poly]
-			local dy2 = edit.my - edit.poly[(i + 2) % #edit.poly + 1]
-
-			local l = dx1 * dx1 + dy1 * dy1
-			dx1 = dx1 / l
-			dy1 = dy1 / l
-			local l = dx2 * dx2 + dy2 * dy2
-			dx2 = dx2 / l
-			dy2 = dy2 / l
-
-			local l = dx1 * dy2 - dx2 * dy1
+			local ax = edit.poly[i]
+			local ay = edit.poly[i + 1]
+			local bx = edit.poly[(i + 2) % #edit.poly]
+			local by = edit.poly[(i + 2) % #edit.poly + 1]
+			local d0 = distance(ax, ay, bx, by)
+			local d1 = distance(ax, ay, edit.mx, edit.my)
+			local d2 = distance(bx, by, edit.mx, edit.my)
+			l = (d1 + d2) / d0
 			if not min_l or l < min_l then
 				min_l = l
 				index = i + 2
@@ -226,13 +221,14 @@ function love.mousereleased(x, y, button)
 			edit.selected_vertices = {}
 		end
 		if edit.mx == edit.sx and edit.my == edit.sy then
+			local dist = 10
 			for i = 1, #edit.poly, 2 do
 				local d = math.max(
 					math.abs(edit.poly[i    ] - edit.mx),
 					math.abs(edit.poly[i + 1] - edit.my)) / cam.zoom
-				if d < 10 then
+				if d < dist then
+					dist = d
 					edit.selected_vertices[1] = i
-					break
 				end
 			end
 		else
@@ -463,8 +459,11 @@ function do_gui()
 			model:change_bone_layer(edit.selected_bone, -1)
 		end
 
+		gui:item_min_size(105, 0)
+		gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1, "%.2f")
 
-		-- helper stuff
+
+--		-- copy bone pos
 --		if true then
 --			gui:item_min_size(105, 0)
 --			if gui:button("copy bone pos")
@@ -549,7 +548,12 @@ function do_gui()
 				- (gui.was_key_pressed["left"] and 1 or 0)
 		if dx ~= 0 then
 			if shift then dx = dx * 10 end
-			edit:set_frame(edit.frame + dx)
+			local f = edit.frame + dx
+			if ctrl and edit.current_anim then
+				local a = edit.current_anim
+				f = a.start + (f - a.start) % (a.stop - a.start)
+			end
+			edit:set_frame(f)
 		end
 		if not gui.active_item and gui:mouse_in_box(box) and gui.is_mouse_down then
 			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
@@ -700,10 +704,10 @@ function love.draw()
 				G.push()
 				G.translate(b.global_x, b.global_y)
 				G.rotate(b.global_ang)
-				G.setColor(120, 80, 80)
+				G.setColor(120 * b.shade, 80 * b.shade, 80 * b.shade)
 				if edit.show_fill then
 					draw_concav_poly(b.poly)
-					G.setColor(100, 60, 60)
+					G.setColor(100 * b.shade, 60 * b.shade, 60 * b.shade)
 				end
 				G.polygon("line", b.poly)
 				G.pop()

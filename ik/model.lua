@@ -6,6 +6,7 @@ function Bone:init(x, y, ang)
 	self.kids      = {}
 	self.poly      = {}
 	self.keyframes = {}
+	self.shade     = 1
 end
 function Bone:add_kid(k)
 	table.insert(self.kids, k)
@@ -126,6 +127,7 @@ function Model:load(name)
 		local b = Bone(d.x, d.y, d.ang)
 		b.poly      = d.poly or {}
 		b.keyframes = d.keyframes or {}
+		b.shade     = d.shade or 1
 		table.insert(self.bones, b)
 	end
 	for i, d in ipairs(data.bones) do
@@ -151,7 +153,8 @@ function Model:save(name)
 			x         = b.x,
 			y         = b.y,
 			ang       = b.ang,
-			parent    = order[b.parent]
+			parent    = order[b.parent],
+			shade     = b.shade,
 		}
 		if #b.poly > 0 then d.poly = b.poly end
 		if #b.keyframes > 0 then d.keyframes = b.keyframes end

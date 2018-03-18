@@ -101,7 +101,7 @@ function World:spawn_player(p)
 	update_player_box(p)
 end
 function update_player_box(p)
-	p.box = { x = p.x - 7, y = p.y - 20, w = 14, h = 20 }
+	p.box = { x = p.x - 10, y = p.y - 22, w = 20, h = 22 }
 end
 function World:add_player(client)
 	local p = { client = client }
@@ -169,20 +169,6 @@ function World:update_player(p)
 	p.old_jump = input.jump
 
 
-	-- shooting
-    if input.shoot and p.shoot_delay == 0 then
-        p.shoot_delay = 50
-		table.insert(self.bullets, {
-			player = p,
-			ttl    = 30,
-			x      = p.x,
-			y      = p.y - 16,
-			dir    = p.dir,
-		})
-    end
-    if p.shoot_delay > 0 then p.shoot_delay = p.shoot_delay - 1 end
-
-
     -- gravity
     p.vy = p.vy + GRAVITY
     local vy = clamp(p.vy, -3, 3)
@@ -244,6 +230,19 @@ function World:update_player(p)
 		World:hit_player(p, 100)
 		p.score = p.score - 1
 	end
+
+	-- shooting
+    if input.shoot and p.shoot_delay == 0 then
+        p.shoot_delay = 50
+		table.insert(self.bullets, {
+			player = p,
+			ttl    = 30,
+			x      = p.x + p.dir * 8,
+			y      = p.y - 15.5,
+			dir    = p.dir,
+		})
+    end
+    if p.shoot_delay > 0 then p.shoot_delay = p.shoot_delay - 1 end
 
 end
 function World:event(e)
@@ -325,12 +324,11 @@ function World:encode_state()
 	state[#state + 1] = " #"
 
 	-- items
+	state[#state + 1] = " "
 	for _, i in pairs(self.items) do
-		if i.tick > 0 then
-			state[#state + 1] = " " .. i.type .. " " .. i.x .. " " .. i.y
-		end
+		state[#state + 1] = i.tick > 0 and "1" or "0"
 	end
-	state[#state + 1] = " #"
+	state[#state + 1] = "#"
 
 	-- events
 	for _, e in ipairs(self.events) do

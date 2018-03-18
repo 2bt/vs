@@ -3,13 +3,23 @@ require("ik/model")
 local G = love.graphics
 ClientWorld = {}
 function ClientWorld:init()
-	self.tick       = 0
-	self.players    = {}
-	self.bullets    = {}
-	self.items      = {}
-	self.particles  = {}
-	self.event_tick = 0
-	self.player_model = Model("ik/save")
+	self.tick        = 0
+	self.players     = {}
+	self.bullets     = {}
+	self.particles   = {}
+	self.event_tick  = 0
+	self.items       = World.items
+
+	self.player_model = Model("ik/turri")
+	for _, b in ipairs(self.player_model.bones) do
+		if #b.poly < 3 then
+			b.polys = {}
+		elseif love.math.isConvex(b.poly) then
+			b.polys = { b.poly }
+		else
+			b.polys = love.math.triangulate(b.poly)
+		end
+	end
 end
 function ClientWorld:decode_state(state)
 	local n = state:gmatch("([^ ]+)")
@@ -18,7 +28,6 @@ function ClientWorld:decode_state(state)
 
 	self.players = {}
 	self.bullets = {}
-	self.items   = {}
 
 	-- players
 	while true do
@@ -46,16 +55,14 @@ function ClientWorld:decode_state(state)
 	end
 
 	-- items
-	while true do
-		local w = n()
-		if w == "#" then break end
-		table.insert(self.items, {
-			type = w,
-			x    = tonumber(n()),
-			y    = tonumber(n()),
-		})
+	local item_states = n()
+	for i, item in ipairs(self.items) do
+		local s = item.state
+		item.state = item_states:sub(i, i) == "1"
+		if s and item.state ~= s then
+			-- TODO: spawn particles
+		end
 	end
-
 
 	-- events
 	local event_tick = self.event_tick
@@ -81,7 +88,7 @@ end
 function ClientWorld:process_event(e)
 	if e[1] == "b" then
 		-- bullet particle
-		for i = 1, 4 do
+		for i = 1, 7 do
 			local a = math.random() * 2 * math.pi
 			local s = math.random() * 4
 			table.insert(self.particles, {
@@ -91,13 +98,12 @@ function ClientWorld:process_event(e)
 				y      = tonumber(e[3]),
 				vx     = math.sin(a) * s,
 				vy     = math.cos(a) * s - 1,
-				ang    = a,
-				radius = 1,
+				radius = 0.5 + math.random(),
 			})
 		end
 	elseif e[1] == "d" then
 		-- death particle
-		for i = 1, 20 do
+		for i = 1, 40 do
 			local a = math.random() * 2 * math.pi
 			local s = math.random() * 4 + 2
 			table.insert(self.particles, {
@@ -107,8 +113,7 @@ function ClientWorld:process_event(e)
 				y      = tonumber(e[3]),
 				vx     = math.sin(a) * s,
 				vy     = math.cos(a) * s - 2,
-				ang    = a,
-				radius = 4,
+				radius = 1 + math.random() * 3,
 			})
 		end
 	end
@@ -152,7 +157,12 @@ end
 function ClientWorld:draw()
 	G.push()
 	local cam = World.spawning_points[1]
-	if self.player then cam = self.player end
+	if self.player then
+		cam = {
+			x = self.player.x,
+			y = self.player.y - 10,
+		}
+	end
 	G.translate(W/2 - cam.x, H/2 - cam.y)
 
 
@@ -163,18 +173,7 @@ function ClientWorld:draw()
 		elseif p.type == "d" then
 			G.setColor(255, 0, 0)
 		end
-		G.push()
-		G.translate(p.x, p.y)
-		G.rotate(p.ang)
-		G.circle("fill", 0, 0, math.min(p.radius * 1.1, p.ttl / 10), 5)
-		G.pop()
-	end
-
-
-	-- bullets
-	G.setColor(255, 255, 100)
-	for _, b in ipairs(self.bullets) do
-		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
+		G.circle("fill", p.x, p.y, math.min(p.radius * 1.1, p.ttl / 10))
 	end
 
 
@@ -199,10 +198,10 @@ function ClientWorld:draw()
 			for x = x1, x2 do
 				local t = World:tile_at(x, y)
 				if t == "0" then
-					G.setColor(110, 80, 120)
-					G.rectangle("fill", x * 16, y * 16, 16, 16)
 					local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
 					if d < 1 then
+						G.setColor(110, 80, 120)
+						G.rectangle("fill", x * 16, y * 16, 16, 16, r)
 						G.setColor(60, 80, 90)
 						G.rectangle("fill", x * 16 + 2, y * 16 + 3, 7, 6)
 					elseif d < 2 then
@@ -213,6 +212,12 @@ function ClientWorld:draw()
 						G.rectangle("fill", x * 16 + 1, y * 16 + 13, 2, 2)
 						G.rectangle("fill", x * 16 + 13, y * 16 + 1, 2, 2)
 						G.rectangle("fill", x * 16 + 13, y * 16 + 13, 2, 2)
+					elseif d % 4.2 > 4 then
+						G.setColor(110, 100, 120)
+						G.rectangle("fill", x * 16, y * 16, 16, 16, 3)
+					else
+						G.setColor(110, 80, 120)
+						G.rectangle("fill", x * 16, y * 16, 16, 16)
 					end
 				elseif t == "^" then
 					G.setColor(50, 30, 0)
@@ -234,11 +239,11 @@ function ClientWorld:draw()
 	end
 
 	-- items
-	for _, i in ipairs(self.items) do
-		if i.type == "+" then
+	for _, item in ipairs(self.items) do
+		if item.state and item.type == "+" then
 			G.setColor(255, 255, 0)
 			G.push()
-			G.translate(i.x, i.y)
+			G.translate(item.x, item.y)
 			G.rotate(math.sin(self.tick * 0.04) * 2)
 			G.circle("line", 0, 0, 5, 6)
 			G.rectangle("fill", -2.5, -0.5, 5, 1)
@@ -246,6 +251,15 @@ function ClientWorld:draw()
 			G.pop()
 		end
 	end
+
+
+	-- bullets
+	G.setColor(255, 255, 100)
+	for _, b in ipairs(self.bullets) do
+		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
+	end
+
+
 
 	-- players
 	for nr, p in ipairs(self.players) do
@@ -271,23 +285,18 @@ function ClientWorld:draw()
 				m:set_frame(f)
 				G.push()
 				G.translate(p.x, p.y)
-				G.scale(0.11)
+				G.scale(0.08)
 				G.scale(p.dir, 1)
-				local c = { G.getColor() }
 
-				local dark_color = {
-					color[1] * 0.7,
-					color[2] * 0.7,
-					color[3] * 0.7,
-				}
 				for i, b in ipairs(m.bones) do
-					if #b.poly >= 3 then
-						local c = i > 4 and color or dark_color
-						G.setColor(unpack(c))
+					if #b.polys > 0 then
+						G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
 						G.push()
 						G.translate(b.global_x, b.global_y)
 						G.rotate(b.global_ang)
-						G.polygon("fill", b.poly)
+						for _, p in ipairs(b.polys) do
+							G.polygon("fill", p)
+						end
 						G.pop()
 					end
 				end
@@ -297,9 +306,9 @@ function ClientWorld:draw()
 
 			-- health
 			G.setColor(255, 255, 255, 50)
-			G.rectangle("fill", p.x - 7, p.y - 27, 14, 2)
+			G.rectangle("fill", p.x - 7, p.y - 28, 14, 2)
 			G.setColor(0, 255, 0, 200)
-			G.rectangle("fill", p.x - 7, p.y - 27, 14 * p.health / 100, 2)
+			G.rectangle("fill", p.x - 7, p.y - 28, 14 * p.health / 100, 2)
 		end
 	end
 
