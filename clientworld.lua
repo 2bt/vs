@@ -261,12 +261,7 @@ function ClientWorld:draw_map(cam, layer)
 		for y = y1, y2 do
 			for x = x1, x2 do
 				local t = World:tile_at(x, y)
-				if t == "0" then
-					-- grounding
-					G.setColor(80, 50, 100)
-					G.rectangle("fill", x * 16, y * 16, 16, 16)
-
-				elseif t == "^" then
+				if t == "^" then
 					-- bridge
 					G.setColor(50, 30, 0)
 					G.rectangle("fill", x * 16, y * 16, 16, 4)
@@ -280,13 +275,31 @@ function ClientWorld:draw_map(cam, layer)
 					G.translate(x * 16, y * 16)
 					G.setColor(100, 0, 0)
 					G.polygon("fill", lava_poly2)
+					G.pop()
+				end
+			end
+		end
+
+
+	elseif layer == "fg" then
+
+		for y = y1, y2 do
+			for x = x1, x2 do
+				local t = World:tile_at(x, y)
+				if t == "0" then
+					-- grounding
+					G.setColor(80, 50, 100)
+					G.rectangle("fill", x * 16, y * 16, 16, 16)
+				elseif t == "L" then
+					-- lava
+					G.push()
+					G.translate(x * 16, y * 16)
 					G.setColor(130, 0, 0)
 					G.polygon("fill", lava_poly)
 					G.pop()
 				end
 			end
 		end
-	elseif layer == "fg" then
 
 		-- wiggly stones
 		for y = y1, y2 do
