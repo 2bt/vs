@@ -3,14 +3,15 @@ GRAVITY   = 0.2
 
 World = {}
 function World:init()
-	self.tick    = 0
-	self.events  = {}
-	self.players = {}
-	self.bullets = {}
-	self.items   = {}
+	self.bullet_id_counter = 0
+	self.tick              = 0
+	self.events            = {}
+	self.players           = {}
+	self.bullets           = {}
 
-	self.tiles   = {}
-	self.spawning_points = {}
+	self.tiles             = {}
+	self.items             = {}
+	self.spawning_points   = {}
 	local y = 0
 	for line in love.filesystem.lines("assets/map.txt") do
 		self.tiles[#self.tiles + 1] = line
@@ -26,7 +27,7 @@ function World:init()
 				table.insert(self.items, {
 					type = "+",
 					x = x * TILE_SIZE + TILE_SIZE / 2,
-					y = y * TILE_SIZE + TILE_SIZE / 2,
+					y = y * TILE_SIZE,
 					tick = 0
 				})
 			end
@@ -101,7 +102,10 @@ function World:spawn_player(p)
 	update_player_box(p)
 end
 function update_player_box(p)
-	p.box = { x = p.x - 10, y = p.y - 22, w = 20, h = 22 }
+	p.box = { x = p.x - 9, y = p.y - 22, w = 18, h = 22 }
+end
+function update_bullet_box(b)
+	b.box = { x = b.x - 5, y = b.y - 1.5, w = 10, h = 3 }
 end
 function World:add_player(client)
 	local p = { client = client }
@@ -232,14 +236,16 @@ function World:update_player(p)
 
 	-- shooting
     if input.shoot and p.shoot_delay == 0 then
-        p.shoot_delay = 50
+        p.shoot_delay = 30
 		table.insert(self.bullets, {
+			id     = self.bullet_id_counter,
 			player = p,
 			ttl    = 30,
 			x      = p.x + p.dir * 8,
 			y      = p.y - 15.5,
 			dir    = p.dir,
 		})
+		self.bullet_id_counter = self.bullet_id_counter + 1
     end
     if p.shoot_delay > 0 then p.shoot_delay = p.shoot_delay - 1 end
 
@@ -266,25 +272,26 @@ function World:update()
 
 		b.x = b.x + b.dir * 7
 
-		local box = { x = b.x - 5, y = b.y - 1, w = 10, h = 2 }
-		local cx = self:collision(box, "x")
+		-- map collision
+		update_bullet_box(b)
+		local cx = self:collision(b.box, "x")
 		if cx ~= 0 then
 			self.bullets[i] = nil
-			self:event({ "b", b.x + cx + b.dir * 7, b.y })
+			self:event({ "b", b.x + cx + b.dir * 5, b.y })
 		end
 
-		-- collision
+		-- player collision
 		for _, p in pairs(self.players) do
 			if b.player ~= p and p.health > 0 then
-				local cx = collision(box, p.box, "x")
+				local cx = collision(b.box, p.box, "x")
 				if cx ~= 0 then
 					self.bullets[i] = nil
 
-					self:event({ "b", b.x + cx + b.dir * 6, b.y, b.dir })
+					self:event({ "b", b.x + cx + b.dir * 5, b.y, b.dir })
 
 					p.vx = p.vx + b.dir * 3
 					p.vy = p.vy - 1.5
-					self:hit_player(p, 25)
+					self:hit_player(p, 20)
 					if p.health == 0 then
 						b.player.score = b.player.score + 1
 					end
@@ -323,6 +330,7 @@ function World:encode_state()
 
 	-- bullets
 	for _, b in pairs(self.bullets) do
+		state[#state + 1] = " " .. b.id
 		state[#state + 1] = " " .. b.x
 		state[#state + 1] = " " .. b.y
 		state[#state + 1] = " " .. b.dir

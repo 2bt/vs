@@ -72,6 +72,7 @@ function ClientWorld:decode_state(state)
 		p.score  = tonumber(n())
 
 		if p.old_health == 0 and p.health > 0 then
+			-- player respawn
 			-- TODO: particles
 		end
 		if p.old_health > 0 and p.health == 0 then
@@ -80,7 +81,6 @@ function ClientWorld:decode_state(state)
 			for i = 1, 40 do
 				self:spawn_blood(p.x, p.y - 10)
 			end
-
 		end
 	end
 	for id, p in pairs(self.players) do
@@ -93,16 +93,27 @@ function ClientWorld:decode_state(state)
 
 
 	-- bullets
-	self.bullets = {}
+	local active_bullets = {}
 	while true do
-		local w = n()
-		if w == "#" then break end
-		table.insert(self.bullets, {
-			x   = tonumber(w),
-			y   = tonumber(n()),
-			dir = tonumber(n()),
-		})
+		local id = n()
+		if id == "#" then break end
+		id = tonumber(id)
+		active_bullets[id] = true
+		if not self.bullets[id] then
+			self.bullets[id] = { tick = 0 }
+		end
+		local b = self.bullets[id]
+		b.x   = tonumber(n())
+		b.y   = tonumber(n())
+		b.dir = tonumber(n())
 	end
+	for id, b in pairs(self.bullets) do
+		if not active_bullets[id] then
+			self.bullets[id] = nil
+		end
+	end
+
+
 
 	-- items
 	local item_states = n()
@@ -165,6 +176,11 @@ function ClientWorld:update()
 			end
 		end
 	end
+
+	for _, b in pairs(self.bullets) do
+		b.tick = b.tick + 1
+	end
+
 
 	for i, p in pairs(self.particles) do
 		p.ttl = p.ttl - 1
@@ -291,24 +307,18 @@ function ClientWorld:draw()
 	-- items
 	for _, item in ipairs(self.items) do
 		if item.state and item.type == "+" then
-			G.setColor(255, 255, 0)
 			G.push()
 			G.translate(item.x, item.y)
-			G.rotate(math.sin(self.tick * 0.04) * 2)
-			G.circle("line", 0, 0, 5, 6)
-			G.rectangle("fill", -2.5, -0.5, 5, 1)
-			G.rectangle("fill", -0.5, -2.5, 1, 5)
+			G.rotate(math.sin(self.tick * 0.02) * 1.4)
+			G.setColor(180, 180, 180)
+			G.circle("fill", 0, 0, 5, 6)
+			G.rotate(math.sin(self.tick * 0.02 + 0.8))
+			G.setColor(200, 0, 0)
+			G.rectangle("fill", -2.5, -1, 5, 2)
+			G.rectangle("fill", -1, -2.5, 2, 5)
 			G.pop()
 		end
 	end
-
-
-	-- bullets
-	G.setColor(255, 255, 100)
-	for _, b in ipairs(self.bullets) do
-		G.rectangle("fill", b.x - 5, b.y - 1, 10, 2)
-	end
-
 
 
 	-- players
@@ -344,7 +354,12 @@ function ClientWorld:draw()
 
 			for i, b in ipairs(m.bones) do
 				if #b.polys > 0 then
-					G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
+					-- the gun gets a special color
+					if b.shade == 0.5 then
+						G.setColor(60, 50, 40)
+					else
+						G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
+					end
 					G.push()
 					G.translate(b.global_x, b.global_y)
 					G.rotate(b.global_ang)
@@ -361,6 +376,17 @@ function ClientWorld:draw()
 			G.rectangle("fill", p.x - 7, p.y - 28, 14, 2)
 			G.setColor(0, 255, 0, 200)
 			G.rectangle("fill", p.x - 7, p.y - 28, 14 * p.health / 100, 2)
+		end
+	end
+
+
+	-- bullets
+	for _, b in pairs(self.bullets) do
+		G.setColor(255, 255, 100)
+		G.rectangle("fill", b.x - 5, b.y - 1.5, 10, 3, 1)
+		if b.tick == 1 then
+			G.setColor(255, 255, 255)
+			G.circle("fill", b.x - b.dir * 3, b.y, 6)
 		end
 	end
 
