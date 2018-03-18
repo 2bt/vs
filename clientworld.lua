@@ -231,7 +231,7 @@ function ClientWorld:update()
 end
 
 
-function ClientWorld:draw_map(cam)
+function ClientWorld:draw_map(cam, layer)
 	local lava_poly = { TILE_SIZE, TILE_SIZE, 0, TILE_SIZE }
 	local lava_poly2 = { TILE_SIZE, TILE_SIZE, 0, TILE_SIZE }
 	for i = 0, TILE_SIZE, TILE_SIZE / 4 do
@@ -256,93 +256,98 @@ function ClientWorld:draw_map(cam)
 	local y2 = math.floor((cam.y + H / 2) / TILE_SIZE)
 
 
-	-- grounding
-	G.setColor(80, 50, 100)
-	for y = y1, y2 do
-		for x = x1, x2 do
-			local t = World:tile_at(x, y)
-			if t == "0" then
-				G.rectangle("fill", x * 16, y * 16, 16, 16)
-			end
-		end
-	end
+	if layer == "bg" then
 
-	-- wiggly stones
-	for y = y1, y2 do
-		for x = x1, x2 do
-			local t = World:tile_at(x, y)
-			if t == "0" then
-				local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
-				if d < 1 then
-				elseif d < 2 then
-				elseif d % 4.2 > 4 then
-				else
-					G.setColor(110, 80, 120)
-					local x1 = x * 16
-					local x2 = x * 16 + 16
-					local y1 = y * 16
-					local y2 = y * 16 + 16
-					local poly = {
-						X(x1, y1), Y(x1, y1),
-						X(x2, y1), Y(x2, y1),
-						X(x2, y2), Y(x2, y2),
-						X(x1, y2), Y(x1, y2),
-					}
-					G.polygon("fill", poly)
-				end
-			end
-		end
-	end
-
-	-- special stones
-	for y = y1, y2 do
-		for x = x1, x2 do
-			local t = World:tile_at(x, y)
-			if t == "0" then
-				local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
-				if d < 1 then
-
-					G.setColor(100, 70, 110)
-					G.rectangle("fill", x * 16, y * 16, 16, 16, r)
-					G.setColor(60, 80, 90)
-					G.rectangle("fill", x * 16 + 2, y * 16 + 3, 7, 6)
-
-				elseif d < 2 then
-					-- screws
-					G.setColor(100, 80, 100)
+		for y = y1, y2 do
+			for x = x1, x2 do
+				local t = World:tile_at(x, y)
+				if t == "0" then
+					-- grounding
+					G.setColor(80, 50, 100)
 					G.rectangle("fill", x * 16, y * 16, 16, 16)
-					G.setColor(60, 60, 80)
-					G.rectangle("fill", x * 16 + 1, y * 16 + 1, 2, 2)
-					G.rectangle("fill", x * 16 + 1, y * 16 + 13, 2, 2)
-					G.rectangle("fill", x * 16 + 13, y * 16 + 1, 2, 2)
-					G.rectangle("fill", x * 16 + 13, y * 16 + 13, 2, 2)
 
-				elseif d % 4.2 > 4 then
-					-- rounded box
-					G.setColor(110, 100, 120)
-					G.rectangle("fill", x * 16, y * 16, 16, 16, 3)
+				elseif t == "^" then
+					-- bridge
+					G.setColor(50, 30, 0)
+					G.rectangle("fill", x * 16, y * 16, 16, 4)
+					G.setColor(130, 80, 50)
+					G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 7, 3)
+					G.rectangle("line", x * 16 + 0.5 + 8, y * 16 + 0.5, 7, 3)
+
+				elseif t == "L" then
+					-- lava
+					G.push()
+					G.translate(x * 16, y * 16)
+					G.setColor(100, 0, 0)
+					G.polygon("fill", lava_poly2)
+					G.setColor(130, 0, 0)
+					G.polygon("fill", lava_poly)
+					G.pop()
 				end
+			end
+		end
+	elseif layer == "fg" then
 
-			elseif t == "^" then
-				G.setColor(50, 30, 0)
-				G.rectangle("fill", x * 16, y * 16, 16, 4)
-				G.setColor(130, 80, 50)
-				G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 7, 3)
-				G.rectangle("line", x * 16 + 0.5 + 8, y * 16 + 0.5, 7, 3)
+		-- wiggly stones
+		for y = y1, y2 do
+			for x = x1, x2 do
+				local t = World:tile_at(x, y)
+				if t == "0" then
+					local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
+					if d < 1 then
+					elseif d < 2 then
+					elseif d % 4.2 > 4 then
+					else
+						G.setColor(110, 80, 120)
+						local x1 = x * 16
+						local x2 = x * 16 + 16
+						local y1 = y * 16
+						local y2 = y * 16 + 16
+						local poly = {
+							X(x1, y1), Y(x1, y1),
+							X(x2, y1), Y(x2, y1),
+							X(x2, y2), Y(x2, y2),
+							X(x1, y2), Y(x1, y2),
+						}
+						G.polygon("fill", poly)
+					end
+				end
+			end
+		end
 
-			elseif t == "L" then
-				-- lava
-				G.push()
-				G.translate(x * 16, y * 16)
-				G.setColor(100, 0, 0)
-				G.polygon("fill", lava_poly2)
-				G.setColor(130, 0, 0)
-				G.polygon("fill", lava_poly)
-				G.pop()
+		-- special stones
+		for y = y1, y2 do
+			for x = x1, x2 do
+				local t = World:tile_at(x, y)
+				if t == "0" then
+					local d = ((x * 12.341 + y * 31.421) ^ 1.2) * 41 % 30
+					if d < 1 then
+
+						G.setColor(100, 70, 110)
+						G.rectangle("fill", x * 16, y * 16, 16, 16, r)
+						G.setColor(60, 80, 90)
+						G.rectangle("fill", x * 16 + 2, y * 16 + 3, 7, 6)
+
+					elseif d < 2 then
+						-- screws
+						G.setColor(100, 80, 100)
+						G.rectangle("fill", x * 16, y * 16, 16, 16)
+						G.setColor(60, 60, 80)
+						G.rectangle("fill", x * 16 + 1, y * 16 + 1, 2, 2)
+						G.rectangle("fill", x * 16 + 1, y * 16 + 13, 2, 2)
+						G.rectangle("fill", x * 16 + 13, y * 16 + 1, 2, 2)
+						G.rectangle("fill", x * 16 + 13, y * 16 + 13, 2, 2)
+
+					elseif d % 4.2 > 4 then
+						-- rounded box
+						G.setColor(110, 100, 120)
+						G.rectangle("fill", x * 16, y * 16, 16, 16, 3)
+					end
+
+				end
 			end
 		end
 	end
-
 
 end
 
@@ -357,6 +362,10 @@ function ClientWorld:draw()
 		}
 	end
 	G.translate(W/2 - cam.x, H/2 - cam.y)
+
+
+	-- map
+	self:draw_map(cam, "bg")
 
 
 	-- particles
@@ -374,10 +383,6 @@ function ClientWorld:draw()
 		G.circle("fill", 0, 0, math.min(p.radius, p.ttl / 10))
 		G.pop()
 	end
-
-
-	-- map
-	self:draw_map(cam)
 
 
 	-- items
@@ -465,6 +470,8 @@ function ClientWorld:draw()
 			G.circle("fill", b.x - b.dir * 3, b.y, 6)
 		end
 	end
+
+	self:draw_map(cam, "fg")
 
 
 	G.pop()
