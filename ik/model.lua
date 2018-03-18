@@ -99,6 +99,7 @@ function Model:set_frame(frame)
 		end
 		if k1 and k2 then
 			local l = (frame - k1[1]) / (k2[1] - k1[1])
+--			l = 3 * l^2 - 2 * l^3
 			local function lerp(i) return k1[i] * (1 - l) + k2[i] * l end
 			b.x   = lerp(2)
 			b.y   = lerp(3)

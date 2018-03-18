@@ -18,7 +18,7 @@ model = Model()
 
 cam = {
 	x    = 0,
-	y    = 0,
+	y    = -150,
 	zoom = 1,
 }
 edit = {
@@ -311,9 +311,7 @@ function love.mousemoved(x, y, dx, dy)
 			local ty = edit.selected_bone.global_y + dy
 
 			local function calc_error()
-				local dx = edit.selected_bone.global_x - tx
-				local dy = edit.selected_bone.global_y - ty
-				return (dx * dx + dy * dy) ^ 0.5
+				return distance(edit.selected_bone.global_x, edit.selected_bone.global_y, tx, ty)
 			end
 
 			for _ = 1, 200 do
@@ -373,12 +371,8 @@ function love.mousemoved(x, y, dx, dy)
 		elseif love.keyboard.isDown("s") then
 			-- scale
 			local cx, cy = get_selection_center()
-			local dx1 = edit.mx - cx - dx
-			local dy1 = edit.my - cy - dy
-			local dx2 = edit.mx - cx
-			local dy2 = edit.my - cy
-			local l1 = (dx1 * dx1 + dy1 * dy1) ^ 0.5
-			local l2 = (dx2 * dx2 + dy2 * dy2) ^ 0.5
+			local l1 = distance(edit.mx, edit.my, cx + dx, cy + dy)
+			local l2 = distance(edit.mx, edit.my, cx, cy)
 			local s = l2 / l1
 
 			for _, i in ipairs(edit.selected_vertices) do
@@ -482,6 +476,25 @@ function do_gui()
 --					edit.selected_bone:update()
 --				end
 --			end
+--		end
+--		-- duplicate bone
+--		if gui.was_key_pressed["q"] then
+--			qqq = edit.selected_bone
+--		end
+--		if gui.was_key_pressed["w"] and qqq then
+--			local function duplicate(b, p)
+--				local k = Bone(b.x, b.y, b.rot)
+--				k.poly = { unpack(b.poly) }
+--				k.keyframes = { unpack(b.keyframes) }
+--				model:add_bone(k)
+--				p:add_kid(k)
+--				for i, l in ipairs(b.kids) do
+--					duplicate(l, k)
+--				end
+--				return k
+--			end
+--			edit.selected_bone = duplicate(qqq, edit.selected_bone)
+--			edit.selected_bone:update()
 --		end
 
 
@@ -622,8 +635,8 @@ function do_gui()
 
 		-- animation
 		local t = edit.current_anim or edit
-		gui:item_min_size(300, 0)
-		gui:drag_value("animation speed", t, "speed", 0.01, 0.1, 1, "%.2f")
+		gui:item_min_size(400, 0)
+		gui:drag_value("animation speed", t, "speed", 0.01, 0.01, 1, "%.2f")
 		gui:same_line()
 		gui:separator()
 
@@ -721,7 +734,7 @@ function love.draw()
 			if b.parent then
 				local dx = b.global_x - b.parent.global_x
 				local dy = b.global_y - b.parent.global_y
-				local l = (dx * dx + dy * dy) ^ 0.5 * 0.1 / cam.zoom
+				local l = length(dx, dy) * 0.1 / cam.zoom
 				G.setColor(100, 150, 200, 150)
 				G.polygon("fill",
 					b.parent.global_x + dy / l,
