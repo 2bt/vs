@@ -123,7 +123,7 @@ function World:spawn_player(p)
 	update_player_box(p)
 end
 function update_player_box(p)
-	p.box = { x = p.x - 9, y = p.y - 22, w = 18, h = 22 }
+	p.box = { x = p.x - 8, y = p.y - 22, w = 16, h = 22 }
 end
 function update_bullet_box(b)
 	b.box = { x = b.x - 5, y = b.y - 1.5, w = 10, h = 3 }
