@@ -70,6 +70,7 @@ function ClientWorld:decode_state(state)
 		p.dir    = tonumber(n())
 		p.health = tonumber(n())
 		p.score  = tonumber(n())
+		p.anim   = tonumber(n())
 
 		if p.old_health == 0 and p.health > 0 then
 			-- player respawn
@@ -350,8 +351,8 @@ function ClientWorld:draw()
 			end
 
 			local m = self.player_model
-			local a = m.anims[1]
-			local f = a.start + (self.tick * 0.5) % (a.stop - a.start)
+			local a = m.anims[p.anim]
+			local f = a.start + (self.tick * a.speed) % (a.stop - a.start)
 			m:set_frame(f)
 			G.push()
 			G.translate(p.x, p.y)

@@ -270,6 +270,20 @@ function World:update_player(p)
     end
     if p.shoot_delay > 0 then p.shoot_delay = p.shoot_delay - 1 end
 
+
+	-- animation
+    if p.in_air then
+		-- jumping
+		p.anim = 3
+    else
+		if input.dx == 0 then
+			-- idle
+			p.anim = 2
+		else
+			-- running
+			p.anim = 1
+		end
+	end
 end
 function World:event(e)
 	e.tick = self.tick
@@ -346,6 +360,7 @@ function World:encode_state()
 		state[#state + 1] = " " .. p.dir
 		state[#state + 1] = " " .. p.health
 		state[#state + 1] = " " .. p.score
+		state[#state + 1] = " " .. p.anim
 	end
 	state[#state + 1] = " #"
 
