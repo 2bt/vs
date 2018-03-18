@@ -57,8 +57,9 @@ function ClientWorld:decode_state(state)
 		active_players[id] = true
 		if not self.players[id] then
 			self.players[id] = {
-				health = 100,
-				tick   = 0,
+				health    = 100,
+				tick      = 0,
+				hit_delay = 0,
 			}
 		end
 		local p = self.players[id]
@@ -66,7 +67,8 @@ function ClientWorld:decode_state(state)
 			self.player = p
 		end
 
-		p.old_health = p.health
+		local old_health = p.health
+		local old_anim = p.anim
 
 		p.name   = n()
 		p.x      = tonumber(n())
@@ -76,11 +78,18 @@ function ClientWorld:decode_state(state)
 		p.score  = tonumber(n())
 		p.anim   = tonumber(n())
 
-		if p.old_health == 0 and p.health > 0 then
+		if p.anim ~= old_anim then
+			p.anim_tick = 0
+		end
+
+		if old_health > p.health then
+			p.hit_delay = 7
+		end
+		if old_health == 0 and p.health > 0 then
 			-- player respawn
 			-- TODO: particles
 		end
-		if p.old_health > 0 and p.health == 0 then
+		if old_health > 0 and p.health == 0 then
 			p.tick = 0
 			-- death
 			for i = 1, 20 do
@@ -177,6 +186,11 @@ function ClientWorld:update()
 
 	for _, p in pairs(self.players) do
 		p.tick = p.tick + 1
+		p.anim_tick = p.anim_tick + 1
+
+		if p.hit_delay > 0 then
+			p.hit_delay = p.hit_delay - 1
+		end
 
 		-- bleeding corpse
 		if p.health == 0 and p.tick < 50 then
@@ -433,13 +447,13 @@ function ClientWorld:draw()
 			end
 
 			-- player got hit
-			if p.old_health > p.health then
+			if p.hit_delay > 0 then
 				color = { 255, 255, 255 }
 			end
 
 			local m = self.player_model
 			local a = m.anims[p.anim]
-			local f = a.start + (self.tick * a.speed) % (a.stop - a.start)
+			local f = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
 			m:set_frame(f)
 			G.push()
 			G.translate(p.x, p.y)
