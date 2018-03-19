@@ -361,6 +361,7 @@ function World:encode_state()
 		state[#state + 1] = " " .. p.health
 		state[#state + 1] = " " .. p.score
 		state[#state + 1] = " " .. p.anim
+		state[#state + 1] = " " .. p.vy
 	end
 	state[#state + 1] = " #"
 

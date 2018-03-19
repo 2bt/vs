@@ -79,6 +79,7 @@ function ClientWorld:decode_state(state)
 		p.health = tonumber(n())
 		p.score  = tonumber(n())
 		p.anim   = tonumber(n())
+		p.vy     = tonumber(n())
 
 		if p.anim ~= old_anim then
 			p.anim_tick = 0
@@ -456,9 +457,16 @@ function ClientWorld:draw()
 
 			local m = self.player_model
 			local a = m.anims[p.anim]
-			local f = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
+			local f
+			if p.anim == 3 then
+				-- jump
+				local l = 0.5 + clamp(p.vy, -5, 5) / 10
+				f = mix(a.start, a.stop, l)
+			else
+				f = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
+			end
 			m:update_bone_transforms(p.bone_transforms, f, p.anim_blend)
-			p.anim_blend = math.min(p.anim_blend + 0.1, 1)
+			p.anim_blend = math.min(p.anim_blend + 0.2, 1)
 			G.push()
 			G.translate(p.x, p.y)
 			G.scale(0.08)

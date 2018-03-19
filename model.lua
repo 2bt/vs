@@ -73,9 +73,12 @@ function Model:update_bone_transforms(bone_transforms, frame, weight)
 		end
 
 		local t = bone_transforms[b.nr]
-		t.x   = mix(t.x,   k[2], weight)
-		t.y   = mix(t.y,   k[3], weight)
-		t.ang = mix(t.ang, k[4], weight)
+
+		if k then
+			t.x   = mix(t.x,   k[2], weight)
+			t.y   = mix(t.y,   k[3], weight)
+			t.ang = mix(t.ang, k[4], weight)
+		end
 
 		-- global transform
 		local p = b.parent and bone_transforms[b.parent.nr] or {
