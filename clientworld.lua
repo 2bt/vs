@@ -536,11 +536,6 @@ function ClientWorld:draw()
 			end
 			G.pop()
 
-			-- health
-			G.setColor(255, 255, 255, 50)
-			G.rectangle("fill", p.x - 7, p.y - 28, 14, 2)
-			G.setColor(0, 255, 0, 200)
-			G.rectangle("fill", p.x - 7, p.y - 28, 14 * p.health / 100, 2)
 		end
 	end
 
@@ -551,6 +546,8 @@ function ClientWorld:draw()
 		G.rectangle("fill", b.x - 5, b.y - 1.5, 10, 3, 1)
 	end
 
+
+	-- muzzle flash
 	for _, p in pairs(self.players) do
 		if p.health > 0 and p.shoot_delay >= 28 then
 			G.setColor(255, 255, 255)
@@ -560,9 +557,19 @@ function ClientWorld:draw()
 
 	self:draw_map(cam, "fg")
 
+	-- health
+	for _, p in pairs(self.players) do
+		if p.health > 0 then
+			G.setColor(255, 255, 255, 50)
+			G.rectangle("fill", p.x - 7, p.y - 28, 14, 2)
+			G.setColor(0, 255, 0, 200)
+			G.rectangle("fill", p.x - 7, p.y - 28, 14 * p.health / 100, 2)
+		end
+	end
+
+
 
 	G.pop()
-
 
 	-- score
 	G.setColor(255, 255, 255)
