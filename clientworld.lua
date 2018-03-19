@@ -62,6 +62,7 @@ function ClientWorld:decode_state(state)
 				hit_delay  = 0,
 				anim_blend = 1,
 				bone_transforms = self.player_model:make_bone_transforms(),
+				spring     = 0
 			}
 		end
 		local p = self.players[id]
@@ -70,7 +71,8 @@ function ClientWorld:decode_state(state)
 		end
 
 		local old_health = p.health
-		local old_anim = p.anim
+		local old_anim   = p.anim
+		local old_vy     = p.vy
 
 		p.name   = n()
 		p.x      = tonumber(n())
@@ -84,6 +86,9 @@ function ClientWorld:decode_state(state)
 		if p.anim ~= old_anim then
 			p.anim_tick = 0
 			p.anim_blend = 0
+			if old_anim == 3 and p.anim == 2 then
+				p.spring = old_vy
+			end
 		end
 
 		if old_health > p.health then
@@ -195,6 +200,32 @@ function ClientWorld:update()
 		if p.hit_delay > 0 then
 			p.hit_delay = p.hit_delay - 1
 		end
+
+		-- update bones
+		local frame
+		if p.anim == 3 then
+			-- jump
+			local l = 0.5 + clamp(p.vy, -5, 5) / 10
+			local a = self.player_model.anims[p.anim]
+			frame = mix(a.start, a.stop, l)
+
+		elseif p.anim == 2 and p.spring > 0 then
+			-- spring
+			a = self.player_model.anims[4]
+			local l = clamp(p.spring / 6, 0, 1)
+			frame = mix(a.start, a.stop, l)
+
+			p.spring = clamp(p.spring - 0.5, 0, 6)
+			p.anim_tick = 0
+		else
+			-- running and idle
+			local a = self.player_model.anims[p.anim]
+			frame = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
+		end
+
+		self.player_model:update_bone_transforms(p.bone_transforms, frame, p.anim_blend)
+		p.anim_blend = math.min(p.anim_blend + 0.2, 1)
+
 
 		-- bleeding corpse
 		if p.health == 0 and p.tick < 50 then
@@ -455,24 +486,13 @@ function ClientWorld:draw()
 				color = { 255, 255, 255 }
 			end
 
-			local m = self.player_model
-			local a = m.anims[p.anim]
-			local f
-			if p.anim == 3 then
-				-- jump
-				local l = 0.5 + clamp(p.vy, -5, 5) / 10
-				f = mix(a.start, a.stop, l)
-			else
-				f = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
-			end
-			m:update_bone_transforms(p.bone_transforms, f, p.anim_blend)
-			p.anim_blend = math.min(p.anim_blend + 0.2, 1)
+
+			-- render bones
 			G.push()
 			G.translate(p.x, p.y)
 			G.scale(0.08)
 			G.scale(p.dir, 1)
-
-			for i, b in ipairs(m.bones) do
+			for i, b in ipairs(self.player_model.bones) do
 				if #b.polys > 0 then
 					-- the gun gets a special color
 					if b.shade == 0.5 then
