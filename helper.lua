@@ -41,6 +41,9 @@ function clamp(v, min, max)
 	return math.max(min, math.min(max, v))
 end
 
+function mix(a, b, x)
+	return a * (1 - x) + b * x
+end
 
 function length(dx, dy)
 	return (dx * dx + dy * dy) ^ 0.5

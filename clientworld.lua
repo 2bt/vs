@@ -57,9 +57,11 @@ function ClientWorld:decode_state(state)
 		active_players[id] = true
 		if not self.players[id] then
 			self.players[id] = {
-				health    = 100,
-				tick      = 0,
-				hit_delay = 0,
+				health     = 100,
+				tick       = 0,
+				hit_delay  = 0,
+				anim_blend = 1,
+				bone_transforms = self.player_model:make_bone_transforms(),
 			}
 		end
 		local p = self.players[id]
@@ -80,6 +82,7 @@ function ClientWorld:decode_state(state)
 
 		if p.anim ~= old_anim then
 			p.anim_tick = 0
+			p.anim_blend = 0
 		end
 
 		if old_health > p.health then
@@ -454,7 +457,8 @@ function ClientWorld:draw()
 			local m = self.player_model
 			local a = m.anims[p.anim]
 			local f = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
-			m:set_frame(f)
+			m:update_bone_transforms(p.bone_transforms, f, p.anim_blend)
+			p.anim_blend = math.min(p.anim_blend + 0.1, 1)
 			G.push()
 			G.translate(p.x, p.y)
 			G.scale(0.08)
@@ -468,9 +472,10 @@ function ClientWorld:draw()
 					else
 						G.setColor(color[1] * b.shade, color[2] * b.shade, color[3] * b.shade)
 					end
+					local t = p.bone_transforms[i]
 					G.push()
-					G.translate(b.global_x, b.global_y)
-					G.rotate(b.global_ang)
+					G.translate(t.global_x, t.global_y)
+					G.rotate(t.global_ang)
 					for _, p in ipairs(b.polys) do
 						G.polygon("fill", p)
 					end
