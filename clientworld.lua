@@ -215,7 +215,7 @@ function ClientWorld:update()
 			local l = clamp(p.spring / 6, 0, 1)
 			frame = mix(a.start, a.stop, l)
 
-			p.spring = clamp(p.spring - 0.5, 0, 6)
+			p.spring = clamp(p.spring - 0.5, 0, 10)
 			p.anim_tick = 0
 		else
 			-- running and idle
