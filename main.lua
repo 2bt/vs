@@ -28,6 +28,13 @@ if not host then Server:init() end
 Client:init(name, host)
 
 
+function love.keypressed(k)
+	if k == "p" then
+		local screenshot = love.graphics.newScreenshot()
+		screenshot:encode('png', os.time() .. '.png')
+	end
+end
+
 function love.update()
 	if love.keyboard.isDown("escape") then
 		love.event.quit()

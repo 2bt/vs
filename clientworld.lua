@@ -20,6 +20,27 @@ function ClientWorld:init()
 			b.polys = love.math.triangulate(b.poly)
 		end
 	end
+
+	-- set up bone mask for shoot animation
+	self.shoot_bone_mask = {}
+	local m = self.player_model
+	local a = m.anims[ANIM_SHOOT]
+	for i, b in ipairs(m.bones) do
+
+		local key
+		for _, k in ipairs(b.keyframes) do
+			if k[1] >= a.start and k[1] <= a.stop then
+				local q = k[2] .. k[3] .. k[4]
+				if not key then
+					key = q
+				elseif q ~= key then
+					self.shoot_bone_mask[i] = 1
+					break
+				end
+			end
+		end
+	end
+
 end
 
 
@@ -74,19 +95,20 @@ function ClientWorld:decode_state(state)
 		local old_anim   = p.anim
 		local old_vy     = p.vy
 
-		p.name   = n()
-		p.x      = tonumber(n())
-		p.y      = tonumber(n())
-		p.dir    = tonumber(n())
-		p.health = tonumber(n())
-		p.score  = tonumber(n())
-		p.anim   = tonumber(n())
-		p.vy     = tonumber(n())
+		p.name        = n()
+		p.x           = tonumber(n())
+		p.y           = tonumber(n())
+		p.dir         = tonumber(n())
+		p.health      = tonumber(n())
+		p.score       = tonumber(n())
+		p.anim        = tonumber(n())
+		p.vy          = tonumber(n())
+		p.shoot_delay = tonumber(n())
 
 		if p.anim ~= old_anim then
 			p.anim_tick = 0
 			p.anim_blend = 0
-			if old_anim == 3 and p.anim == 2 then
+			if old_anim == ANIM_JUMP and p.anim == ANIM_IDLE then
 				p.spring = old_vy
 			end
 		end
@@ -123,7 +145,7 @@ function ClientWorld:decode_state(state)
 		id = tonumber(id)
 		active_bullets[id] = true
 		if not self.bullets[id] then
-			self.bullets[id] = { tick = 0 }
+			self.bullets[id] = {}
 		end
 		local b = self.bullets[id]
 		b.x   = tonumber(n())
@@ -193,6 +215,7 @@ end
 function ClientWorld:update()
 	self.tick = self.tick + 1
 
+	-- players
 	for _, p in pairs(self.players) do
 		p.tick = p.tick + 1
 		p.anim_tick = p.anim_tick + 1
@@ -203,15 +226,15 @@ function ClientWorld:update()
 
 		-- update bones
 		local frame
-		if p.anim == 3 then
+		if p.anim == ANIM_JUMP then
 			-- jump
 			local l = 0.5 + clamp(p.vy, -5, 5) / 10
-			local a = self.player_model.anims[p.anim]
+			local a = self.player_model.anims[ANIM_JUMP]
 			frame = mix(a.start, a.stop, l)
 
-		elseif p.anim == 2 and p.spring > 0 then
+		elseif p.anim == ANIM_IDLE and p.spring > 0 then
 			-- spring
-			a = self.player_model.anims[4]
+			a = self.player_model.anims[ANIM_DUCK]
 			local l = clamp(p.spring / 6, 0, 1)
 			frame = mix(a.start, a.stop, l)
 
@@ -223,7 +246,11 @@ function ClientWorld:update()
 			frame = a.start + (p.anim_tick * a.speed) % (a.stop - a.start)
 		end
 
+		local a = self.player_model.anims[ANIM_SHOOT]
+		local shoot_frame = math.min(a.stop, a.start + (29 - p.shoot_delay) * 1.2)
+
 		self.player_model:update_bone_transforms(p.bone_transforms, frame, p.anim_blend)
+		self.player_model:update_bone_transforms(p.bone_transforms, shoot_frame, self.shoot_bone_mask)
 		p.anim_blend = math.min(p.anim_blend + 0.2, 1)
 
 
@@ -236,11 +263,8 @@ function ClientWorld:update()
 		end
 	end
 
-	for _, b in pairs(self.bullets) do
-		b.tick = b.tick + 1
-	end
 
-
+	-- particles
 	for i, p in pairs(self.particles) do
 		p.ttl = p.ttl - 1
 		if p.ttl < 0 then
@@ -525,9 +549,12 @@ function ClientWorld:draw()
 	for _, b in pairs(self.bullets) do
 		G.setColor(255, 255, 100)
 		G.rectangle("fill", b.x - 5, b.y - 1.5, 10, 3, 1)
-		if b.tick == 1 then
+	end
+
+	for _, p in pairs(self.players) do
+		if p.health > 0 and p.shoot_delay >= 28 then
 			G.setColor(255, 255, 255)
-			G.circle("fill", b.x - b.dir * 3, b.y, 6)
+			G.circle("fill", p.x + p.dir * 12, p.y - 15.5, 6)
 		end
 	end
 

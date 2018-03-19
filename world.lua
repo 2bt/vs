@@ -1,6 +1,13 @@
 TILE_SIZE = 16
 GRAVITY   = 0.2
 
+ANIM_RUN   = 1
+ANIM_IDLE  = 2
+ANIM_JUMP  = 3
+ANIM_DUCK  = 4
+ANIM_SHOOT = 5
+
+
 World = {}
 function World:init()
 	self.bullet_id_counter = 0
@@ -273,15 +280,12 @@ function World:update_player(p)
 
 	-- animation
     if p.in_air then
-		-- jumping
-		p.anim = 3
+		p.anim = ANIM_JUMP
     else
 		if input.dx == 0 then
-			-- idle
-			p.anim = 2
+			p.anim = ANIM_IDLE
 		else
-			-- running
-			p.anim = 1
+			p.anim = ANIM_RUN
 		end
 	end
 end
@@ -362,6 +366,7 @@ function World:encode_state()
 		state[#state + 1] = " " .. p.score
 		state[#state + 1] = " " .. p.anim
 		state[#state + 1] = " " .. p.vy
+		state[#state + 1] = " " .. p.shoot_delay
 	end
 	state[#state + 1] = " #"
 

@@ -43,7 +43,24 @@ function Model:make_bone_transforms()
 	end
 	return bone_transforms
 end
-function Model:update_bone_transforms(bone_transforms, frame, weight)
+
+
+-- weights is either:
+-- + nil
+-- + a weight for all bones
+-- + a table of weights
+function Model:update_bone_transforms(bone_transforms, frame, weights)
+
+	weights = weights or 1
+	local weight = 0
+	if type(weights) == "number" then
+		weight = weights
+		weights = {}
+	end
+	local function get_weight(nr)
+		return weights[nr] or weight
+	end
+
 	local function visit(b, func)
 		func(b)
 		for _, k in ipairs(b.kids) do
@@ -75,9 +92,10 @@ function Model:update_bone_transforms(bone_transforms, frame, weight)
 		local t = bone_transforms[b.nr]
 
 		if k then
-			t.x   = mix(t.x,   k[2], weight)
-			t.y   = mix(t.y,   k[3], weight)
-			t.ang = mix(t.ang, k[4], weight)
+			local w = get_weight(b.nr)
+			t.x   = mix(t.x,   k[2], w)
+			t.y   = mix(t.y,   k[3], w)
+			t.ang = mix(t.ang, k[4], w)
 		end
 
 		-- global transform
