@@ -247,7 +247,7 @@ function ClientWorld:update()
 		end
 
 		local a = self.player_model.anims[ANIM_SHOOT]
-		local shoot_frame = math.min(a.stop, a.start + (29 - p.shoot_delay) * 1.2)
+		local shoot_frame = math.min(a.stop, a.start + (SHOOT_DELAY - p.shoot_delay) * 1.2)
 
 		self.player_model:update_bone_transforms(p.bone_transforms, frame, p.anim_blend)
 		self.player_model:update_bone_transforms(p.bone_transforms, shoot_frame, self.shoot_bone_mask)
@@ -488,6 +488,13 @@ function ClientWorld:draw()
 	end
 
 
+	-- bullets
+	for _, b in pairs(self.bullets) do
+		G.setColor(255, 255, 100)
+		G.rectangle("fill", b.x - 5, b.y - 1.5, 10, 3, 1)
+	end
+
+
 	-- players
 	for _, p in pairs(self.players) do
 		if p.health > 0 then
@@ -540,16 +547,9 @@ function ClientWorld:draw()
 	end
 
 
-	-- bullets
-	for _, b in pairs(self.bullets) do
-		G.setColor(255, 255, 100)
-		G.rectangle("fill", b.x - 5, b.y - 1.5, 10, 3, 1)
-	end
-
-
 	-- muzzle flash
 	for _, p in pairs(self.players) do
-		if p.health > 0 and p.shoot_delay >= 28 then
+		if p.health > 0 and p.shoot_delay >= SHOOT_DELAY - 1 then
 			G.setColor(255, 255, 255)
 			G.circle("fill", p.x + p.dir * 12, p.y - 15.5, 6)
 		end

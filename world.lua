@@ -1,6 +1,8 @@
 TILE_SIZE = 16
 GRAVITY   = 0.2
 
+SHOOT_DELAY = 30
+
 ANIM_RUN   = 1
 ANIM_IDLE  = 2
 ANIM_JUMP  = 3
@@ -264,7 +266,7 @@ function World:update_player(p)
 
 	-- shooting
     if input.shoot and p.shoot_delay == 0 then
-        p.shoot_delay = 30
+        p.shoot_delay = SHOOT_DELAY
 		table.insert(self.bullets, {
 			id     = self.bullet_id_counter,
 			player = p,
