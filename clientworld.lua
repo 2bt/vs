@@ -329,11 +329,20 @@ function ClientWorld:draw_map(cam, layer)
 				local t = World:tile_at(x, y)
 				if t == "^" then
 					-- bridge
-					G.setColor(50, 30, 0)
-					G.rectangle("fill", x * 16, y * 16, 16, 4)
-					G.setColor(130, 80, 50)
-					G.rectangle("line", x * 16 + 0.5, y * 16 + 0.5, 7, 3)
-					G.rectangle("line", x * 16 + 0.5 + 8, y * 16 + 0.5, 7, 3)
+					G.setColor(100, 70, 40)
+					G.polygon("fill", {
+						x * 16, y * 16 - 1,
+						x * 16 + 8, y * 16,
+						x * 16 + 8, y * 16 + 4,
+						x * 16, y * 16 + 3,
+					})
+					G.setColor(70, 50, 20)
+					G.polygon("fill", {
+						x * 16 + 8, y * 16,
+						x * 16 + 16, y * 16 - 1,
+						x * 16 + 16, y * 16 + 3,
+						x * 16 + 8, y * 16 + 4,
+					})
 
 				elseif t == "L" then
 					-- lava
