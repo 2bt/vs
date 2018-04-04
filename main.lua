@@ -15,6 +15,12 @@ require("network")
 
 
 local G = love.graphics
+do
+	local setColor = G.setColor
+	G.setColor = function(r, g, b, a)
+		setColor(r / 255, g / 255, b / 255, (a or 255) / 255)
+	end
+end
 
 W = 320
 H = 180
@@ -30,7 +36,7 @@ Client:init(name, host)
 
 function love.keypressed(k)
 	if k == "p" then
-		local screenshot = love.graphics.newScreenshot()
+		local screenshot = G.newScreenshot()
 		screenshot:encode('png', os.time() .. '.png')
 	end
 end
@@ -60,7 +66,7 @@ end
 function love.draw()
 	do
 		G.setScissor()
-		G.clear(30, 30, 30)
+		G.clear(0.1, 0.1, 0.1)
 		local w = G.getWidth()
 		local h = G.getHeight()
 		if w / h < W / H then
